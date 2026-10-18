@@ -232,6 +232,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .tbl-wrap{overflow-x:auto}
 .month-h{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 4px;display:flex;justify-content:space-between}
 
+.tl{display:grid;grid-template-columns:52px auto 1fr auto;gap:12px;align-items:center;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer;border-radius:10px}
+.tl:hover{background:var(--surface2)}
+.tl-date{text-align:center;line-height:1.1}
+.tl-date b{display:block;font-size:17px;font-weight:800}
+.tl-date span{font-size:11px;color:var(--muted)}
+.tl .t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:820px){.tl{grid-template-columns:38px auto 1fr auto;gap:8px}.tl .amt{font-size:13.5px}}
 .split-bar{height:16px;border-radius:99px;overflow:hidden;display:flex;margin:14px 0 10px}
 .split-bar i{display:block;height:100%}
 
@@ -355,6 +362,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 <div id="print"></div>
 
 <script>
+const APP_VERSION='3 (okt. 18.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
@@ -573,9 +581,9 @@ function renderSide(){
     <div class="nav-foot">
       ${item('finansz','wallet','Finanszírozás')}
       ${item('beallitasok','settings','Beállítások')}
-      <button class="nav-item nav-quiet ${view==='elszamolas'?'active':''}" data-go="elszamolas"><i data-lucide="scale"></i><span>Elszámolás</span></button>
+      <button class="nav-item nav-quiet ${view==='elszamolas'?'active':''}" data-go="elszamolas"><i data-lucide="heart-handshake"></i><span>Kifizetések</span></button>
       <div class="sync"><div class="row" id="sync-st"><span class="sdot"></span>Szinkronizálva</div>
-        <div class="row">Belépve: <b style="color:var(--ink)">${ME}</b><span style="margin-left:auto"><button data-act="logout">Kilépés</button></span></div>
+        <div class="row" style="opacity:.7">Verzió: ${APP_VERSION}</div><div class="row">Belépve: <b style="color:var(--ink)">${ME}</b><span style="margin-left:auto"><button data-act="logout">Kilépés</button></span></div>
         ${backupHint()}</div>
     </div>`;
 }
@@ -876,22 +884,33 @@ function renderQuotes(){
   :'<div class="panel empty">Még nincs árajánlat. Vegyétek fel őket, és itt témakörönként összevethetitek.</div>'}`;
 }
 /* ---------- settlement ---------- */
+let payWho='';
 function renderSettle(){
-  const by=p=>S.expenses.filter(e=>e.paidBy===p&&paid(e)).reduce((a,e)=>a+e.amount,0);
+  const all=S.expenses.filter(paid);
+  const by=p=>all.filter(e=>e.paidBy===p).reduce((a,e)=>a+e.amount,0);
   const b=by('Bence'),a=by('Ancsi'),k=by('Közös'),pers=a+b||1;
-  return `<div class="page-head"><div><h1>Elszámolás</h1><p class="sub">Ki mennyit tett bele a közös projektbe</p></div></div>
-  <div class="panel">
-    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px">
-      <div><span class="who who-Bence">Bence</span><div class="kpi-big" style="font-size:30px">${ft(b)}</div><span class="small muted">${Math.round(b/pers*100)}% a saját befizetésekből</span></div>
-      <div style="text-align:right"><span class="who who-Ancsi">Ancsi</span><div class="kpi-big" style="font-size:30px">${ft(a)}</div><span class="small muted">${Math.round(a/pers*100)}% a saját befizetésekből</span></div>
+  const list=all.filter(e=>!payWho||e.paidBy===payWho).sort((x,y)=>y.date.localeCompare(x.date)||(y.created||0)-(x.created||0));
+  const groups={};list.forEach(e=>{const m=e.date.slice(0,7);(groups[m]=groups[m]||[]).push(e)});
+  return `<div class="page-head"><div><h1>Kifizetések</h1><p class="sub">Időrendben: mi, mikor és kitől ment a közös otthonra.</p></div></div>
+  <div class="panel" style="padding:14px 18px">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13.5px">
+      <span><span class="who who-Bence">Bence</span> <b>${ft(b)}</b> <span class="muted">· ${Math.round(b/pers*100)}%</span></span>
+      <span><span class="who who-Ancsi">Ancsi</span> <b>${ft(a)}</b> <span class="muted">· ${Math.round(a/pers*100)}%</span></span>
     </div>
-    <div class="split-bar"><i style="width:${b/pers*100}%;background:var(--pine)"></i><i style="width:${a/pers*100}%;background:var(--oak)"></i></div>
-    <p class="small muted" style="margin:0">Közös kasszából fizetve: <b style="color:var(--ink)">${ft(k)}</b>. Ezt külön tartja nyilván, nem osztja szét kettőtök között.</p>
+    <div class="split-bar" style="height:6px;margin:10px 0 6px"><i style="width:${b/pers*100}%;background:var(--pine)"></i><i style="width:${a/pers*100}%;background:var(--oak)"></i></div>
+    ${k?`<div class="small muted">Közösből fizetve: ${ft(k)}</div>`:''}
   </div>
-  <div class="panel" style="margin-top:22px"><div class="panel-head"><h2>Témakörönként</h2></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Témakör</th><th class="r">Bence</th><th class="r">Ancsi</th><th class="r">Közös</th></tr></thead><tbody>
-  ${S.cats.map(c=>{const f=p=>S.expenses.filter(e=>e.catId===c.id&&e.paidBy===p&&paid(e)).reduce((x,e)=>x+e.amount,0);const r=[f('Bence'),f('Ancsi'),f('Közös')];return r.some(Boolean)?`<tr><td>${esc(c.name)}</td>${r.map(v=>`<td class="r">${v?ft(v):'–'}</td>`).join('')}</tr>`:''}).join('')||'<tr><td colspan="4" class="muted">Még nincs kiadás.</td></tr>'}
-  </tbody></table></div></div>`;
+  <div class="chips">${[['','Mindenki'],['Bence','Bence'],['Ancsi','Ancsi'],['Közös','Közös']].map(([v,l])=>`<button data-payf="${v}" class="${payWho===v?'on':''}">${l}</button>`).join('')}</div>
+  <div class="panel">
+    ${list.length?Object.entries(groups).map(([m,l])=>`<div class="month-h"><span>${toD(m+'-15').toLocaleDateString('hu-HU',{year:'numeric',month:'long'})}</span><span>${ft(l.reduce((s,e)=>s+e.amount,0))}</span></div>
+      ${l.map(e=>{const c=cat(e.catId)||{icon:'receipt',name:''};return `<div class="tl" data-act="edit-expense" data-id="${e.id}">
+        <div class="tl-date"><b>${toD(e.date).getDate()}.</b><span>${toD(e.date).toLocaleDateString('hu-HU',{weekday:'short'})}</span></div>
+        <span class="who who-${e.paidBy}">${e.paidBy}</span>
+        <div class="grow" style="min-width:0"><div class="t">${esc(e.desc||c.name)}</div><div class="s small muted" style="display:flex;align-items:center;gap:6px"><span class="mini-ico" style="--c:${col(c)};width:18px;height:18px;border-radius:5px"><i data-lucide="${c.icon}" style="width:11px;height:11px"></i></span>${esc(c.name)}${e.note?', '+esc(e.note):''}</div></div>
+        <span class="amt">${ft(e.amount)}</span></div>`}).join('')}`).join(''):'<div class="empty">Még nincs kifizetett tétel.</div>'}
+  </div>`;
 }
+
 /* ---------- funding ---------- */
 function fundCalc(){
   const F=S.funding||[], t=totals();
@@ -912,6 +931,16 @@ function fundRow(f){
   const right=loan?(f.repaid?'<span class="chip pine">Visszafizetve</span>':`<button class="btn sm" data-repay="${f.id}"><i data-lucide="check"></i>Visszafizetve</button>`):(f.status==='Megérkezett'?'<span class="chip pine">Megérkezett</span>':'<span class="chip oak">Várható</span>');
   return `<div class="li"><div class="mini-ico" style="--c:${FUND_COLORS[f.type]||'#5C7A72'}"><i data-lucide="${FUND_ICON[f.type]||'wallet'}"></i></div><div class="grow"><div class="t">${esc(f.name)}</div><div class="s" style="white-space:normal">${sub.map(esc).join(', ')}</div></div>${right}<span class="amt">${ft(fAmt(f))}</span><button class="icon-btn" data-act="edit-fund" data-id="${f.id}" aria-label="Szerkesztés"><i data-lucide="pencil"></i></button></div>`;
 }
+function saleCommHTML(s,c){return `Jutalék: eladási ár × ${String(s.commPct).replace('.',',')}% × (1 + ${String(s.commExtraPct).replace('.',',')}%) = <b style="color:var(--ink)">${ft(c.comm)}</b>`}
+function saleWfHTML(s,c){return `<div class="wf"><span>Eladási ár</span><span>${ft(s.price)}</span></div>
+        <div class="wf neg"><span>Közvetítői jutalék</span><span>−${nf.format(c.comm)} Ft</span></div>
+        ${(s.deductions||[]).filter(d=>!d.settled&&d.amount).map(d=>`<div class="wf neg"><span>${esc(d.name)}</span><span>−${nf.format(d.amount)} Ft</span></div>`).join('')}
+        <div class="wf total"><span>Ami marad</span><span style="color:${c.net<0?'var(--danger)':'var(--pine)'}">${ft(c.net)}</span></div>`}
+function saleInvHTML(s,c){return `<div class="ret"><div><span class="kpi-lbl">Hozam</span><b style="color:${c.gain<0?'var(--danger)':'var(--ok)'}">${c.gain>=0?'+':'−'}${ft(Math.abs(c.gain))}</b></div><div><span class="kpi-lbl">Nyereség</span><b style="color:${c.gain<0?'var(--danger)':'var(--ok)'}">${c.pct.toLocaleString('hu-HU',{maximumFractionDigits:2})}%</b></div><div><span class="kpi-lbl">Évesítve</span><b>${c.ann===null?'–':c.ann.toLocaleString('hu-HU',{maximumFractionDigits:2})+'%'}</b></div></div>
+      <p class="small muted" style="margin:10px 0 0">A finanszírozásnál a befektetés jelenlegi értékével számol: most elérhető ebből a forrásból <b style="color:var(--ink)">${ft(c.avail)}</b>.</p>`}
+function saleSet(f,k,v){f.sale[k]=['investName','investDate'].includes(k)?v:(k.endsWith('Pct')?(parseFloat(String(v).replace(',','.'))||0):amt(v))}
+function saleLive(f){const s=f.sale,c=saleCalc(s),g=x=>document.getElementById(x+f.id);
+  if(g('sc-'))g('sc-').innerHTML=saleCommHTML(s,c);if(g('sw-'))g('sw-').innerHTML=saleWfHTML(s,c);if(g('si-'))g('si-').innerHTML=saleInvHTML(s,c)}
 function salePanel(f){
   const s=f.sale, c=saleCalc(s);
   const mi=(field,label,val,extra='')=>`<label class="f">${label}<input class="inp" inputmode="decimal" data-sale="${field}" data-fid="${f.id}" value="${val}" ${extra}></label>`;
@@ -926,19 +955,14 @@ function salePanel(f){
           ${mi('commPct','Közvetítői jutalék %',String(s.commPct).replace('.',','))}
           ${mi('commExtraPct','Jutalék felár % (ÁFA stb.)',String(s.commExtraPct).replace('.',','))}
         </div>
-        <p class="small muted" style="margin:10px 0 0">Jutalék: eladási ár × ${String(s.commPct).replace('.',',')}% × (1 + ${String(s.commExtraPct).replace('.',',')}%) = <b style="color:var(--ink)">${ft(c.comm)}</b></p>
+        <p class="small muted" style="margin:10px 0 0" id="sc-${f.id}">${saleCommHTML(s,c)}</p>
       </div>
       <div>
         <div class="small muted"><b>Levonások</b> (ami az eladásból még kifizetendő)</div>
         ${(s.deductions||[]).map(d=>`<div class="ded ${d.settled?'settled':''}"><input class="inp" data-ded="name" data-did="${d.id}" data-fid="${f.id}" value="${esc(d.name)}"><input class="inp" inputmode="numeric" data-ded="amount" data-did="${d.id}" data-fid="${f.id}" value="${d.amount?nf.format(d.amount):''}" placeholder="0" style="text-align:right"><label title="Ha már rendezve van, nem vonja le"><input type="checkbox" data-ded="settled" data-did="${d.id}" data-fid="${f.id}" ${d.settled?'checked':''}>rendezve</label><button class="icon-btn" data-ded-del="${d.id}" data-fid="${f.id}" aria-label="Törlés"><i data-lucide="x"></i></button></div>`).join('')}
         <button class="btn sm" style="margin-top:10px" data-ded-add="${f.id}"><i data-lucide="plus"></i>Levonás</button>
       </div>
-      <div>
-        <div class="wf"><span>Eladási ár</span><span>${ft(s.price)}</span></div>
-        <div class="wf neg"><span>Közvetítői jutalék</span><span>−${nf.format(c.comm)} Ft</span></div>
-        ${(s.deductions||[]).filter(d=>!d.settled&&d.amount).map(d=>`<div class="wf neg"><span>${esc(d.name)}</span><span>−${nf.format(d.amount)} Ft</span></div>`).join('')}
-        <div class="wf total"><span>Ami marad</span><span style="color:${c.net<0?'var(--danger)':'var(--pine)'}">${ft(c.net)}</span></div>
-      </div>
+      <div id="sw-${f.id}">${saleWfHTML(s,c)}</div>
     </div>
     <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
       <label class="inv-toggle"><input type="checkbox" data-sale-inv="${f.id}" ${s.invested?'checked':''}>Az összeg (egy része) be van fektetve</label>
@@ -948,8 +972,7 @@ function salePanel(f){
         <label class="f">Befektetés dátuma<input class="inp" type="date" data-sale="investDate" data-fid="${f.id}" value="${s.investDate||''}"></label>
         ${mi('investValue','Jelenlegi érték',s.investValue?nf.format(s.investValue):'')}
       </div>
-      <div class="ret"><div><span class="kpi-lbl">Hozam</span><b style="color:${c.gain<0?'var(--danger)':'var(--ok)'}">${c.gain>=0?'+':'−'}${ft(Math.abs(c.gain))}</b></div><div><span class="kpi-lbl">Nyereség</span><b style="color:${c.gain<0?'var(--danger)':'var(--ok)'}">${c.pct.toLocaleString('hu-HU',{maximumFractionDigits:2})}%</b></div><div><span class="kpi-lbl">Évesítve</span><b>${c.ann===null?'–':c.ann.toLocaleString('hu-HU',{maximumFractionDigits:2})+'%'}</b></div></div>
-      <p class="small muted" style="margin:10px 0 0">A finanszírozásnál a befektetés jelenlegi értékével számol: most elérhető ebből a forrásból <b style="color:var(--ink)">${ft(c.avail)}</b>.</p>`:''}
+      <div id="si-${f.id}">${saleInvHTML(s,c)}</div>`:''}
     </div>
   </div>`;
 }
@@ -1245,6 +1268,8 @@ document.addEventListener('click',e=>{
   if(td){return confirmBox('Biztosan törlöd ezt a teendőt?',()=>{S.tasks=S.tasks.filter(t=>t.id!==td.dataset.taskDel);save();render()})}
   const cpb=e.target.closest('[data-copy]');
   if(cpb){const v=cpb.dataset.copy;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>toast('Másolva: '+v)).catch(()=>toast('A másolás nem sikerült'));return}
+  const pf=e.target.closest('[data-payf]');
+  if(pf){payWho=pf.dataset.payf;render();return}
   const rt=e.target.closest('[data-rect]');
   if(rt){recT=rt.dataset.rect;render();return}
   const da=e.target.closest('[data-ded-add]');
@@ -1264,7 +1289,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.f){cat(view.slice(4))[t.dataset.f]=t.value;save();if(['start','end','contractor'].includes(t.dataset.f))renderSide(),icons();return}
   if(t.dataset.set){S.settings[t.dataset.set]=t.type==='number'?+t.value:t.value;save();return}
   if(t.dataset.sale){const f=S.funding.find(x=>x.id===t.dataset.fid),k=t.dataset.sale;
-    f.sale[k]=['investName','investDate'].includes(k)?t.value:(k.endsWith('Pct')?(parseFloat(String(t.value).replace(',','.'))||0):amt(t.value));save();render();return}
+    saleSet(f,k,t.value);save();render();return}
   if(t.dataset.saleStatus){S.funding.find(x=>x.id===t.dataset.saleStatus).status=t.value;save();render();return}
   if(t.dataset.saleInv){S.funding.find(x=>x.id===t.dataset.saleInv).sale.invested=t.checked;save();render();return}
   if(t.dataset.ded){const d=S.funding.find(x=>x.id===t.dataset.fid).sale.deductions.find(x=>x.id===t.dataset.did),k=t.dataset.ded;
@@ -1274,6 +1299,11 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target;
+  if(t.dataset.sale&&t.dataset.fid){const f=S.funding.find(x=>x.id===t.dataset.fid);if(f){
+      if(!/Pct$|investName|investDate/.test(t.dataset.sale)){const v=amt(t.value);t.value=v?nf.format(v):''}
+      saleSet(f,t.dataset.sale,t.value);saleLive(f)}return}
+  if(t.dataset.ded&&t.dataset.fid){const f=S.funding.find(x=>x.id===t.dataset.fid),d=f&&f.sale.deductions.find(x=>x.id===t.dataset.did);if(d){
+      if(t.dataset.ded==='amount'){const v=amt(t.value);t.value=v?nf.format(v):'';d.amount=v}else if(t.dataset.ded==='name')d.name=t.value;saleLive(f)}return}
   if(t.id==='rec-q'){recQ=t.value;const l=document.getElementById('rec-list');if(l){l.innerHTML=recListHTML();icons()}return}
   if(t.dataset.catRange){document.getElementById('pv').textContent=t.value+'%'}
   if((t.dataset.sale&&!/Pct$|investName|investDate/.test(t.dataset.sale))||t.dataset.ded==='amount'){const v=amt(t.value);t.value=v?nf.format(v):''}
