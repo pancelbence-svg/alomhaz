@@ -389,7 +389,7 @@ button.tag{cursor:pointer}
 <div id="print"></div>
 
 <script>
-const APP_VERSION='4 (okt. 19.)';
+const APP_VERSION='5 (okt. 19.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
@@ -919,73 +919,116 @@ function recModal(r,presetType){
   });
 }
 
-/* ---------- PDF kivonat (nyomtatás → Mentés PDF-ként) ---------- */
+/* ---------- PDF kivonat (valódi PDF fájl, jsPDF) ---------- */
 const nowStr=()=>new Date().toLocaleString('hu-HU',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
 const dts=ms=>ms?new Date(ms).toLocaleString('hu-HU',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'–';
-function prHead(title,sub){return `<div class="pr-head"><div><div class="pr-brand">ÁLOMHÁZ</div><h1>${esc(title)}</h1><div class="pr-sub">${esc(sub||'')}</div></div><div class="pr-meta">Készült: ${nowStr()}<br>Készítette: ${esc(ME)}<br>${esc(S.settings.project||'')}</div></div>`}
-function prExpTable(list,showCat){
+function makePdfDoc(jsPDF,autoTable,fonts,spec){
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  doc.addFileToVFS('M-R.ttf',fonts.r);doc.addFont('M-R.ttf','M','normal');
+  doc.addFileToVFS('M-B.ttf',fonts.b);doc.addFont('M-B.ttf','M','bold');
+  const W=210,ML=12,MR=12,G=[47,93,80],INK=[25,30,32],MUT=[110,118,120];
+  let y=14;
+  doc.setFont('M','bold');doc.setFontSize(8);doc.setTextColor(...G);doc.text('ÁLOMHÁZ',ML,y);
+  doc.setFont('M','normal');doc.setFontSize(7.5);doc.setTextColor(...MUT);
+  doc.text(['Készült: '+spec.when,'Készítette: '+spec.who,spec.project||''].filter(Boolean),W-MR,y,{align:'right'});
+  y+=7;doc.setFont('M','bold');doc.setFontSize(17);doc.setTextColor(...INK);
+  const tl=doc.splitTextToSize(spec.title,W-ML-MR-62);doc.text(tl,ML,y);y+=tl.length*7;
+  if(spec.sub){doc.setFont('M','normal');doc.setFontSize(9);doc.setTextColor(...MUT);const sl=doc.splitTextToSize(spec.sub,W-ML-MR);doc.text(sl,ML,y);y+=sl.length*4.5}
+  y+=1;doc.setDrawColor(...G);doc.setLineWidth(0.6);doc.line(ML,y,W-MR,y);y+=5;
+  if(spec.sums&&spec.sums.length){const n=spec.sums.length,gap=3,bw=(W-ML-MR-gap*(n-1))/n;
+    spec.sums.forEach(([l,v],i)=>{const x=ML+i*(bw+gap);doc.setDrawColor(205,212,210);doc.setLineWidth(0.3);doc.roundedRect(x,y,bw,14,1.5,1.5);
+      doc.setFont('M','normal');doc.setFontSize(7);doc.setTextColor(...MUT);doc.text(doc.splitTextToSize(l,bw-4)[0],x+2.5,y+5);
+      doc.setFont('M','bold');doc.setFontSize(9.5);doc.setTextColor(...INK);doc.text(String(v),x+2.5,y+10.8)});y+=19}
+  (spec.sections||[]).forEach(sec=>{
+    if(y>270){doc.addPage();y=16}
+    doc.setFont('M','bold');doc.setFontSize(11.5);doc.setTextColor(...G);doc.text(sec.h,ML,y+2);y+=5;
+    if(!sec.body||!sec.body.length){doc.setFont('M','normal');doc.setFontSize(9);doc.setTextColor(...MUT);doc.text(sec.empty||'Nincs tétel.',ML,y+3);y+=10;return}
+    const cs={};(sec.right||[]).forEach(i=>cs[i]={halign:'right',cellWidth:sec.mw||23});Object.assign(cs,sec.colStyles||{});
+    autoTable(doc,{startY:y,head:[sec.head],body:sec.body,foot:sec.foot?[sec.foot]:undefined,margin:{left:ML,right:MR,top:14,bottom:14},
+      styles:{font:'M',fontStyle:'normal',fontSize:7.8,cellPadding:1.6,textColor:INK,lineColor:[222,226,224],lineWidth:{bottom:0.2},overflow:'linebreak',valign:'top'},
+      headStyles:{font:'M',fontStyle:'bold',fillColor:[236,243,240],textColor:G,lineWidth:{bottom:0.4},lineColor:[150,180,170]},
+      footStyles:{font:'M',fontStyle:'bold',fillColor:[255,255,255],textColor:INK,lineWidth:{top:0.5},lineColor:G},
+      columnStyles:cs,showFoot:'lastPage',rowPageBreak:'avoid',theme:'plain',didParseCell:d=>{if(d.section==='foot'&&(sec.right||[]).includes(d.column.index))d.cell.styles.halign='right'}});
+    y=doc.lastAutoTable.finalY+8;
+  });
+  const pages=doc.getNumberOfPages();
+  for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFont('M','normal');doc.setFontSize(7);doc.setTextColor(...MUT);
+    doc.text('Álomház építési napló · '+spec.when,ML,290);doc.text(i+' / '+pages,W-MR,290,{align:'right'})}
+  return doc;
+}
+
+function expSection(list,showCat,h='Kiadások'){
   list=[...list].sort((a,b)=>((paid(a)?a.date:a.due)||'').localeCompare((paid(b)?b.date:b.due)||''));
-  const pd=list.filter(paid).reduce((s,e)=>s+e.amount,0), pn=list.filter(e=>!paid(e)).reduce((s,e)=>s+e.amount,0);
-  if(!list.length)return '<p>Nincs kiadás.</p>';
-  return `<table><thead><tr><th>Fizetés dátuma</th><th>Megnevezés</th>${showCat?'<th>Témakör</th>':''}<th>Fizette</th><th>Állapot</th><th class="r">Tervezett</th><th class="r">Összeg</th><th>Megjegyzés</th><th>Rögzítve</th></tr></thead><tbody>
-  ${list.map(e=>`<tr><td>${paid(e)?fd(e.date):(e.due?'határidő: '+fd(e.due):'–')}</td><td>${esc(e.desc||'')}</td>${showCat?`<td>${esc((cat(e.catId)||{}).name||'')}</td>`:''}<td>${esc(e.paidBy||'')}</td><td>${paid(e)?'Fizetve':'Fizetendő'}</td><td class="r">${e.planned?ft(e.planned):''}</td><td class="r">${ft(e.amount)}</td><td>${esc(e.note||'')}</td><td>${dts(e.created)}${e.by?', '+esc(e.by):''}</td></tr>`).join('')}
-  <tr class="tot"><td colspan="${showCat?6:5}">Kifizetve összesen${pn?' / még fizetendő':''}</td><td class="r">${ft(pd)}${pn?'<br>'+ft(pn):''}</td><td colspan="2"></td></tr></tbody></table>`;
+  const pd=list.filter(paid).reduce((s,e)=>s+e.amount,0),pn=list.filter(e=>!paid(e)).reduce((s,e)=>s+e.amount,0);
+  const head=['Fizetés dátuma','Megnevezés',...(showCat?['Témakör']:[]),'Fizette','Állapot','Tervezett','Összeg','Megjegyzés','Rögzítve'];
+  const off=showCat?1:0;
+  const body=list.map(e=>[paid(e)?fd(e.date):(e.due?'határidő: '+fd(e.due):'–'),e.desc||'',...(showCat?[(cat(e.catId)||{}).name||'']:[]),e.paidBy||'',paid(e)?'Fizetve':'Fizetendő',e.planned?ft(e.planned):'',ft(e.amount),e.note||'',dts(e.created)+(e.by?', '+e.by:'')]);
+  const foot=head.map(()=>'');foot[0]='Kifizetve összesen'+(pn?' / még fizetendő':'');foot[5+off]=ft(pd)+(pn?'\n'+ft(pn):'');
+  return {h,head,body,foot:list.length?foot:null,right:[4+off,5+off],empty:'Nincs kiadás.'};
 }
-function prCat(id){
+function specCat(id){
   const c=cat(id),sp=spent(id),cm=committed(id),pn=pending(id),rem=(c.budget||0)-Math.max(sp,cm,sp+pn);
-  const qs=S.quotes.filter(q=>q.catId===id), tasks=S.tasks.filter(t=>t.catId===id&&!t.done);
-  return prHead(c.name,(c.scope==='haz'?'A házkeret része':'Házkereten kívüli tétel')+(c.contractor?' · Kivitelező: '+c.contractor:'')+' · Készültség: '+c.progress+'%')
-   +`<div class="pr-sum"><div><span>Keret</span><b>${c.budget?ft(c.budget):'–'}</b></div><div><span>Kifizetve</span><b>${ft(sp)}</b></div><div><span>Lekötve (ajánlat)</span><b>${ft(cm)}</b></div><div><span>Fizetendő</span><b>${ft(pn)}</b></div><div><span>Maradék</span><b>${c.budget?ft(rem):'–'}</b></div></div>`
-   +`<h2>Kiadások</h2>${prExpTable(S.expenses.filter(e=>e.catId===id))}`
-   +(qs.length?`<h2>Árajánlatok</h2><table><thead><tr><th>Megnevezés</th><th>Dátum</th><th>Állapot</th><th class="r">Összeg</th><th>Tartalom</th></tr></thead><tbody>${qs.map(q=>`<tr><td>${esc(q.vendor)}</td><td>${fd(q.date)}</td><td>${esc(q.status)}</td><td class="r">${ft(q.amount)}</td><td>${esc(q.note||'')}</td></tr>`).join('')}</tbody></table>`:'')
-   +(tasks.length?`<h2>Nyitott teendők</h2><table><thead><tr><th>Teendő</th><th>Határidő</th><th>Ki intézi</th><th>Megjegyzés</th></tr></thead><tbody>${tasks.map(t=>`<tr><td>${esc(t.title)}</td><td>${fd(t.due)}</td><td>${esc(t.who||'')}</td><td>${esc(t.note||'')}</td></tr>`).join('')}</tbody></table>`:'');
+  const qs=S.quotes.filter(q=>q.catId===id), tasks=S.tasks.filter(t=>t.catId===id&&tStat(t)!=='done');
+  return {title:c.name,sub:[(c.scope==='haz'?'A házkeret része':'Házkereten kívüli tétel'),c.contractor?'Kivitelező: '+c.contractor:'','Készültség: '+c.progress+'%'].filter(Boolean).join(' · '),
+    sums:[['Keret',c.budget?ft(c.budget):'–'],['Kifizetve',ft(sp)],['Lekötve (ajánlat)',ft(cm)],['Fizetendő',ft(pn)],['Maradék',c.budget?ft(rem):'–']],
+    sections:[expSection(S.expenses.filter(e=>e.catId===id)),
+      ...(qs.length?[{h:'Árajánlatok',head:['Ajánlattevő','Megnevezés','Állapot','Összeg','Tartalmazza','Előnyök','Hátrányok'],right:[3],
+        body:qs.map(q=>[qName(q)||'',q.partnerId?q.vendor||'':'',q.status||'',ft(q.amount),q.note||'',lines(q.pros).map(x=>'+ '+x).join('\n'),lines(q.cons).map(x=>'− '+x).join('\n')])}]:[]),
+      ...(tasks.length?[{h:'Nyitott feladatok',head:['Feladat','Ki csinálja','Határidő','Címkék','Megjegyzés'],body:tasks.map(t=>[t.title,t.who||'',t.due?fd(t.due):'',(t.tags||[]).map(g=>'#'+g).join(' '),t.note||''])}]:[])]};
 }
-function prExp(){
+function specExp(){
   let list=[...S.expenses];if(filt.cat)list=list.filter(e=>e.catId===filt.cat);if(filt.who)list=list.filter(e=>e.paidBy===filt.who);
-  const sub=[filt.cat?(cat(filt.cat)||{}).name:'Minden témakör',filt.who||'mindenki'].join(' · ');
   const by=p=>list.filter(e=>paid(e)&&e.paidBy===p).reduce((s,e)=>s+e.amount,0);
-  return prHead('Kiadások kivonata',sub)+`<div class="pr-sum"><div><span>Bence fizette</span><b>${ft(by('Bence'))}</b></div><div><span>Ancsi fizette</span><b>${ft(by('Ancsi'))}</b></div><div><span>Közös</span><b>${ft(by('Közös'))}</b></div><div><span>Tételek</span><b>${list.length} db</b></div><div><span>Kifizetve összesen</span><b>${ft(list.filter(paid).reduce((s,e)=>s+e.amount,0))}</b></div></div>`+prExpTable(list,true);
+  return {title:'Kiadások kivonata',sub:[filt.cat?(cat(filt.cat)||{}).name:'Minden témakör',filt.who||'mindenki'].join(' · '),
+    sums:[['Bence fizette',ft(by('Bence'))],['Ancsi fizette',ft(by('Ancsi'))],['Közös',ft(by('Közös'))],['Tételek',list.length+' db'],['Kifizetve összesen',ft(list.filter(paid).reduce((s,e)=>s+e.amount,0))]],
+    sections:[expSection(list,true)]};
 }
-function prAll(){
+function specAll(){
   const t=totals();
-  return prHead('Projekt összesítő','Készültség: '+Math.round(overall())+'% · Házkeret: '+ft(t.hb))
-   +`<div class="pr-sum"><div><span>Elköltve a házra</span><b>${ft(t.hs)}</b></div><div><span>Lekötve / fizetendő</span><b>${ft(t.open)}</b></div><div><span>Szabad keret</span><b>${ft(t.free)}</b></div><div><span>Kereten kívül (telek stb.)</span><b>${ft(t.os)}</b></div><div><span>Teljes projekt</span><b>${ft(t.all)}</b></div></div>`
-   +`<h2>Témakörök</h2><table><thead><tr><th>Témakör</th><th class="r">Keret</th><th class="r">Kifizetve</th><th class="r">Lekötve</th><th class="r">Fizetendő</th><th class="r">Készültség</th></tr></thead><tbody>${S.cats.map(c=>`<tr><td>${esc(c.name)}${c.scope!=='haz'?' <span style="color:#888">(kereten kívül)</span>':''}</td><td class="r">${c.budget?ft(c.budget):'–'}</td><td class="r">${ft(spent(c.id))}</td><td class="r">${ft(committed(c.id))}</td><td class="r">${ft(pending(c.id))}</td><td class="r">${c.progress}%</td></tr>`).join('')}
-   <tr class="tot"><td>Összesen</td><td class="r">${ft(S.cats.reduce((s,c)=>s+(c.budget||0),0))}</td><td class="r">${ft(t.all)}</td><td class="r">${ft(S.cats.reduce((s,c)=>s+committed(c.id),0))}</td><td class="r">${ft(S.cats.reduce((s,c)=>s+pending(c.id),0))}</td><td class="r">${Math.round(overall())}%</td></tr></tbody></table>`
-   +`<h2>Összes kiadás</h2>${prExpTable(S.expenses,true)}`;
+  return {title:'Projekt összesítő',sub:'Készültség: '+Math.round(overall())+'% · Házkeret: '+ft(t.hb),
+    sums:[['Elköltve a házra',ft(t.hs)],['Lekötve / fizetendő',ft(t.open)],['Szabad keret',ft(t.free)],['Kereten kívül',ft(t.os)],['Teljes projekt',ft(t.all)]],
+    sections:[{h:'Témakörök',head:['Témakör','Keret','Kifizetve','Lekötve','Fizetendő','Készültség'],right:[1,2,3,4,5],
+      body:S.cats.map(c=>[c.name+(c.scope!=='haz'?' (kereten kívül)':''),c.budget?ft(c.budget):'–',ft(spent(c.id)),ft(committed(c.id)),ft(pending(c.id)),c.progress+'%']),
+      foot:['Összesen',ft(S.cats.reduce((s,c)=>s+(c.budget||0),0)),ft(t.all),ft(S.cats.reduce((s,c)=>s+committed(c.id),0)),ft(S.cats.reduce((s,c)=>s+pending(c.id),0)),Math.round(overall())+'%']},
+      expSection(S.expenses,true,'Összes kiadás')]};
 }
-function loadScript(src){return new Promise((ok,no)=>{if(document.querySelector(`script[src="${src}"]`)&&window.html2pdf)return ok();const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+function specPay(){
+  const all=S.expenses.filter(paid).sort((a,b)=>a.date.localeCompare(b.date));
+  const by=p=>all.filter(e=>e.paidBy===p).reduce((s,e)=>s+e.amount,0);
+  return {title:'Kifizetések',sub:'Ki, mikor, mit fizetett',
+    sums:[['Bence',ft(by('Bence'))],['Ancsi',ft(by('Ancsi'))],['Közös',ft(by('Közös'))],['Tételek',all.length+' db'],['Összesen',ft(all.reduce((s,e)=>s+e.amount,0))]],
+    sections:[{h:'Kifizetések időrendben',head:['Dátum','Ki fizette','Megnevezés','Témakör','Összeg','Megjegyzés','Rögzítve'],right:[4],
+      body:all.map(e=>[fd(e.date),e.paidBy||'',e.desc||'',(cat(e.catId)||{}).name||'',ft(e.amount),e.note||'',dts(e.created)+(e.by?', '+e.by:'')]),
+      foot:['Összesen','','','',ft(all.reduce((s,e)=>s+e.amount,0)),'','']}]};
+}
+const PDF_LIBS=['https://cdn.jsdelivr.net/npm/jspdf@3.0.4/dist/jspdf.umd.min.js','https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.8/dist/jspdf.plugin.autotable.min.js'];
+const PDF_FONTS={r:'https://cdn.jsdelivr.net/npm/@expo-google-fonts/montserrat@0.4.2/400Regular/Montserrat_400Regular.ttf',b:'https://cdn.jsdelivr.net/npm/@expo-google-fonts/montserrat@0.4.2/700Bold/Montserrat_700Bold.ttf'};
+let pdfFonts=null;
+function loadScript(src){return new Promise((ok,no)=>{if(document.querySelector(`script[data-src="${src}"]`))return ok();const s=document.createElement('script');s.src=src;s.dataset.src=src;s.onload=ok;s.onerror=()=>no(new Error('script: '+src));document.head.appendChild(s)})}
+async function fontB64(url){const buf=new Uint8Array(await (await fetch(url)).arrayBuffer());let s='';for(let i=0;i<buf.length;i+=0x8000)s+=String.fromCharCode.apply(null,buf.subarray(i,i+0x8000));return btoa(s)}
 async function printReport(kind,id){
-  const body=kind==='cat'?prCat(id):kind==='exp'?prExp():kind==='pay'?prPay():prAll();
+  const spec=kind==='cat'?specCat(id):kind==='exp'?specExp():kind==='pay'?specPay():specAll();
+  spec.when=nowStr();spec.who=ME;spec.project=S.settings.project||'';
   const nm=kind==='cat'?(cat(id)||{}).name:kind==='exp'?'Kiadasok':kind==='pay'?'Kifizetesek':'Osszesito';
   const fname=('Alomhaz - '+nm+' - '+today()).replace(/[\\/:*?"<>|]/g,'-')+'.pdf';
   modal(`<h3>PDF készül…</h3><p class="muted">Pár másodperc.</p>`,()=>{});
   try{
-    await loadScript('https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js');
-    const el=document.getElementById('print');
-    el.innerHTML=body+`<div class="pr-foot">Álomház építési napló · ${nowStr()}</div>`;
-    el.style.cssText='display:block;position:fixed;left:0;top:0;width:760px;background:#fff;z-index:-1;padding:4px';
-    const blob=await html2pdf().set({margin:[12,10,12,10],filename:fname,image:{type:'jpeg',quality:0.95},
-      html2canvas:{scale:2,backgroundColor:'#ffffff',windowWidth:780,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy'],avoid:['tr','.pr-sum','.pr-head']}}).from(el).outputPdf('blob');
-    el.style.cssText='';el.innerHTML='';
+    for(const s of PDF_LIBS)await loadScript(s);
+    if(!pdfFonts)pdfFonts={r:await fontB64(PDF_FONTS.r),b:await fontB64(PDF_FONTS.b)};
+    const AT=window.autoTable||(window.jspdfAutoTable&&window.jspdfAutoTable.autoTable);
+    const doc=makePdfDoc(window.jspdf.jsPDF,AT,pdfFonts,spec);
+    const blob=doc.output('blob');
     const url=URL.createObjectURL(blob), file=new File([blob],fname,{type:'application/pdf'});
     const canShare=navigator.canShare&&navigator.canShare({files:[file]})&&/iPhone|iPad|Android/i.test(navigator.userAgent);
     modal(`<h3>Kész a PDF</h3><p class="muted" style="margin-top:0">${esc(fname)}</p>
       <div class="modal-foot" style="justify-content:flex-start;flex-wrap:wrap">
         ${canShare?`<button class="btn primary" id="pdf-share"><i data-lucide="share"></i>Mentés / megosztás</button>`:''}
         <a class="btn ${canShare?'':'primary'}" id="pdf-dl" href="${url}" download="${esc(fname)}"><i data-lucide="file-down"></i>Letöltés</a>
+        <a class="btn" href="${url}" target="_blank" rel="noopener"><i data-lucide="eye"></i>Megnyitás</a>
         <button class="btn" data-m="cancel">Bezár</button></div>`,()=>{},
       bd=>{bd.querySelector('#pdf-share')?.addEventListener('click',()=>navigator.share({files:[file],title:fname}).catch(()=>{}));
         bd.querySelector('#pdf-dl').addEventListener('click',()=>setTimeout(()=>{document.getElementById('layer').innerHTML='';toast('PDF letöltve')},300))});
-  }catch(err){console.error(err);document.getElementById('layer').innerHTML='';const el=document.getElementById('print');el.style.cssText='';el.innerHTML='';toast('A PDF nem készült el – van internet?')}
-}
-function prPay(){
-  const all=S.expenses.filter(paid).sort((a,b)=>a.date.localeCompare(b.date));
-  const by=p=>all.filter(e=>e.paidBy===p).reduce((s,e)=>s+e.amount,0);
-  return prHead('Kifizetések','Ki, mikor, mit fizetett')+`<div class="pr-sum"><div><span>Bence</span><b>${ft(by('Bence'))}</b></div><div><span>Ancsi</span><b>${ft(by('Ancsi'))}</b></div><div><span>Közös</span><b>${ft(by('Közös'))}</b></div><div><span>Tételek</span><b>${all.length} db</b></div><div><span>Összesen</span><b>${ft(all.reduce((s,e)=>s+e.amount,0))}</b></div></div>
-  <table><thead><tr><th>Dátum</th><th>Ki fizette</th><th>Megnevezés</th><th>Témakör</th><th class="r">Összeg</th><th>Megjegyzés</th><th>Rögzítve</th></tr></thead><tbody>
-  ${all.map(e=>`<tr><td>${fd(e.date)}</td><td>${esc(e.paidBy)}</td><td>${esc(e.desc||'')}</td><td>${esc((cat(e.catId)||{}).name||'')}</td><td class="r">${ft(e.amount)}</td><td>${esc(e.note||'')}</td><td>${dts(e.created)}${e.by?', '+esc(e.by):''}</td></tr>`).join('')}</tbody></table>`;
+  }catch(err){console.error(err);document.getElementById('layer').innerHTML='';toast('A PDF nem készült el – van internet?')}
 }
 
 /* ---------- expenses page ---------- */
