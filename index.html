@@ -467,7 +467,7 @@ button.tag{cursor:pointer}
 <div id="print"></div>
 
 <script>
-const APP_VERSION='14 (okt. 20.)';
+const APP_VERSION='15 (okt. 20.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
@@ -647,7 +647,7 @@ const APP={
     if(pendSettings&&pendSettings!==rj){S.settings=JSON.parse(pendSettings);syncedSettings=pendSettings;return}
     pendSettings=null;S.settings=s||{};syncedSettings=rj;scheduleRender()},
   seedAll(){const d=seed();READY=true;Object.assign(S,d);save()},
-  ready(email){ME=USERS[(email||'').toLowerCase()]||'Bence';READY=true;migrate();migrate2();scheduleRender(true)},
+  ready(email){if(APP._ready)return;APP._ready=true;ME=USERS[(email||'').toLowerCase()]||'Bence';READY=true;migrate();migrate2();scheduleRender(true)},
   setStatus(st){lastSt=st;const el=document.getElementById('sync-st');if(!el)return;
     const m={ok:['','Szinkronizálva'],pending:['off','Mentés folyamatban…'],offline:['off','Offline – net után szinkronizál'],error:['err','Hiba a szinkronban']}[st]||['','Szinkronizálva'];
     el.innerHTML=`<span class="sdot ${m[0]}"></span>${m[1]}`;
@@ -1932,7 +1932,8 @@ async function start(user) {
     console.warn('Első betöltés gyorsítótárból', e);
   }
   let first = new Set();
-  const done = name => { first.add(name); if (first.size === 8) APP.ready(user.email); };
+  let readyFired = false;
+  const done = name => { first.add(name); if (!readyFired && first.size === 8) { readyFired = true; APP.ready(user.email); } };
   ['cats','expenses','quotes','tasks','funding','utilities','records'].forEach(c => {
     unsubs.push(onSnapshot(col(c), snap => { APP.applyRemote(c, snap.docs.map(d => d.data())); done(c); },
       err => { console.error(err); APP.setStatus('error'); done(c); }));
