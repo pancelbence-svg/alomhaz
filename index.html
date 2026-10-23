@@ -2,7 +2,7 @@
 <html lang="hu">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Álomház</title>
 <meta name="theme-color" content="#2F5D50">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -258,7 +258,14 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .nav-saved.pending,.nav-saved.offline{color:var(--oak)}
 .nav-saved.error{color:var(--danger)}
 .mobile-only{display:none}
-@media (max-width:820px){.navbar{padding:8px 12px}.mobile-only{display:grid}}
+@media (max-width:820px){.navbar{padding:8px 12px;gap:8px}.mobile-only{display:grid}
+  .navbar .mobile-only,.nbtn{width:42px;height:40px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);padding:0}
+  .navbar svg.lucide{width:22px;height:22px}
+  /* iPhone: 16px alatti betűméretű mezőnél a Safari ránagyít – ezért mobilon minden mező legalább 16px */
+  input,select,textarea,.inp,select.inp,textarea.inp{font-size:16px!important}
+  .amount-in{font-size:30px!important}
+  html,body{overflow-x:hidden}
+}
 .dedl{border:1px solid var(--line);border-radius:12px;padding:2px 10px}
 .drow{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border-bottom:0}
@@ -467,7 +474,7 @@ button.tag{cursor:pointer}
 <div id="print"></div>
 
 <script>
-const APP_VERSION='15 (okt. 20.)';
+const APP_VERSION='16 (okt. 20.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
