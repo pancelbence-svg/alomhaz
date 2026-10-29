@@ -274,6 +274,25 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
   .li{flex-wrap:wrap;row-gap:6px}.li>.grow{flex:1 1 55%;min-width:0}
   .kpis{grid-template-columns:1fr 1fr!important}
 }
+div.f{display:flex;flex-direction:column;gap:5px}div.f>span:first-child{font-size:12.5px;font-weight:600;color:var(--muted)}
+.paybox{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px;background:var(--surface2)}
+.pb-plan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:end}
+.pb-sum b{display:block;font-size:18px;font-weight:800}.pb-sum .small{display:block}
+.pb-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.pb-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;cursor:pointer}
+.pb-row:hover{border-color:var(--pine)}
+.pb-main{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}.pb-main b{font-size:15px}
+.pb-d{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.pb-meta{font-size:12px;text-align:right;line-height:1.35}
+.pb-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;gap:10px;align-items:end;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.pb-go{height:40px}
+.q2{flex-direction:column;align-items:stretch;gap:6px}
+.q2-h{display:flex;align-items:flex-start;gap:12px}.q2-t{flex:1;min-width:0}.q2-t b{display:block;font-size:14.5px}.q2-t .small{display:block}
+.q2-h .amt{font-size:15.5px}
+.q2-note{font-size:12.5px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;max-height:7.5em;overflow:auto;border-left:3px solid var(--line);padding-left:10px}
+.q2-a{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+@media (max-width:1180px){.pb-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.pb-form .pb-go{grid-column:1/-1;justify-content:center}}
+@media (max-width:820px){.pb-plan{grid-template-columns:minmax(0,1fr)}.pb-row{grid-template-columns:auto 1fr}.pb-meta{grid-column:2;text-align:left}}
 .chap{border-top:1px solid var(--line)}
 .chap:first-of-type{border-top:0}
 .chap-h{display:grid;grid-template-columns:30px 1fr 18px;gap:12px;align-items:center;width:100%;border:0;background:none;padding:10px 4px;cursor:pointer;text-align:left;color:var(--ink);border-radius:10px}
@@ -518,7 +537,7 @@ button.tag{cursor:pointer}
 <div id="print"></div>
 
 <script>
-const APP_VERSION='19 (okt. 29.)';
+const APP_VERSION='20 (okt. 29.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
@@ -1028,10 +1047,13 @@ const qName=q=>{const p=partnerOf(q);return p?p.title:q.vendor};
 const recField=(r,k)=>((r.fields||[]).find(f=>f.k===k)||{}).v||'';
 function quoteRow(q){
   const cls=q.status==='Elfogadva'?'acc':q.status==='Elutasítva'?'rej':'', p=partnerOf(q);
-  return `<div class="quote ${cls}"><div style="flex:1;min-width:0"><div class="t" style="font-weight:600">${esc(qName(q))}</div><div class="small muted">${[p&&q.vendor?q.vendor:'',q.date?fd(q.date):'',q.note].filter(Boolean).map(esc).join(', ')}</div></div>
-    <span class="amt">${ft(q.amount)}</span>
-    ${q.status==='Elfogadva'?'<span class="chip oak">Elfogadva</span>':q.status==='Elutasítva'?'<span class="chip">Elutasítva</span>':`<button class="btn sm" data-q-acc="${q.id}"><i data-lucide="check"></i>Elfogad</button>`}
-    ${lockBtn('quote',q.id,q.locked)}<button class="icon-btn" data-act="edit-quote" data-id="${q.id}" aria-label="Szerkesztés"><i data-lucide="${q.locked?'eye':'pencil'}"></i></button></div>`}
+  const sub=[p&&q.vendor?q.vendor:'',q.date?fd(q.date):'',q.validUntil?'érvényes: '+fd(q.validUntil):''].filter(Boolean).map(esc).join(' · ');
+  return `<div class="quote q2 ${cls}">
+    <div class="q2-h"><div class="q2-t"><b>${esc(qName(q))}</b>${sub?`<span class="small muted">${sub}</span>`:''}</div>
+      <span class="amt">${ft(q.amount)}</span></div>
+    ${q.note?`<div class="q2-note">${esc(q.note)}</div>`:''}
+    <div class="q2-a">${q.status==='Elfogadva'?'<span class="chip oak">Elfogadva</span>':q.status==='Elutasítva'?'<span class="chip">Elutasítva</span>':(q.locked?'':`<button class="btn sm" data-q-acc="${q.id}"><i data-lucide="check"></i>Elfogad</button>`)}
+      <span style="margin-left:auto;display:flex;gap:2px">${lockBtn('quote',q.id,q.locked)}<button class="icon-btn" data-act="edit-quote" data-id="${q.id}" aria-label="Szerkesztés"><i data-lucide="${q.locked?'eye':'pencil'}"></i></button></span></div></div>`}
 const lines=s=>(s||'').split('\n').map(x=>x.trim()).filter(Boolean);
 function qcard(q,min){
   const p=partnerOf(q), st=q.status, diff=q.amount-min;
@@ -1322,19 +1344,31 @@ function chapterRow(c,s){
     <button class="chap-h" data-chap="${s.id}">
       ${s.done?'<span class="done-badge"><i data-lucide="check"></i></span>':`<span class="mini-ico" style="--c:${col(c)}"><i data-lucide="${s.icon||'tag'}"></i></span>`}
       <span class="chap-n"><b>${esc(s.name)}</b>${s.optional?' <span class="chip">opcionális</span>':''}
-        <span class="small muted">${s.planned?`tervezett ${ft(s.planned)}`:'nincs tervezett összeg'}${sp?` · kifizetve ${ft(sp)}`:''}${pn?` · fizetendő ${ft(pn)}`:''}${steps.length?` · lépések ${sd}/${steps.length}`:''}${s.done&&s.doneDate?' · kész: '+fd(s.doneDate):''}</span>
+        <span class="small muted">${s.planned?`tervezett ${ft(s.planned)}`:'nincs tervezett összeg'}${sp?` · <span style="color:var(--ok);font-weight:600">✓ kifizetve ${ft(sp)}${(()=>{const l=ex.filter(paid);return l.length?' ('+fd(l[0].date)+')':''})()}</span>`:''}${pn?` · fizetendő ${ft(pn)}`:''}${steps.length?` · lépések ${sd}/${steps.length}`:''}${s.done&&s.doneDate?' · kész: '+fd(s.doneDate):''}</span>
         ${s.planned?`<span class="bar" style="height:5px;margin-top:6px"><i style="width:${pct}%;background:${over?'var(--danger)':'var(--pine)'}"></i></span>`:''}</span>
       <i data-lucide="${open?'chevron-up':'chevron-down'}"></i></button>
     ${open?`<div class="chap-b">
       ${s.note?`<div class="small" style="white-space:pre-wrap;margin-bottom:10px;color:var(--muted)">${esc(s.note)}</div>`:''}
       ${steps.length||!s.done?`<div class="steps">${steps.map(x=>`<label class="step ${x.done?'ok':''}"><input type="checkbox" data-step="${c.id}|${s.id}|${x.id}" ${x.done?'checked':''} ${s.done?'disabled':''}><span>${esc(x.t)}</span>${s.done?'':`<button type="button" class="icon-btn" data-act="step-del" data-cat="${c.id}" data-sub="${s.id}" data-id="${x.id}" aria-label="Lépés törlése"><i data-lucide="x"></i></button>`}</label>`).join('')}
         ${s.done?'':`<div class="step-add"><input class="inp" id="ns-${s.id}" placeholder="+ új lépés, Enter" data-newstep="${c.id}|${s.id}"><button class="btn sm" data-act="step-add" data-cat="${c.id}" data-sub="${s.id}">Hozzáad</button></div>`}</div>`:''}
-      <div class="small muted" style="margin:12px 0 4px"><b>Kifizetések</b></div>
-      ${ex.length?ex.map(expRowC).join(''):'<div class="small muted">Még nincs kifizetés ebben a fejezetben.</div>'}
+      <div class="paybox">
+        <div class="pb-plan"><label class="f">Tervezett / ajánlat szerinti összeg<input class="inp" inputmode="numeric" data-chapplan="${c.id}|${s.id}" value="${s.planned?nf.format(s.planned):''}" placeholder="pl. 250 000" ${s.done?'readonly':''}></label>
+          <div class="pb-sum"><span class="kpi-lbl">Kifizetve</span><b>${ft(sp)}</b>${s.planned?`<span class="small" style="color:${sp>s.planned?'var(--danger)':sp===s.planned?'var(--ok)':'var(--muted)'}">${sp>s.planned?'+'+ft(sp-s.planned)+' a tervhez képest':sp===s.planned?'pontosan a terv szerint ✓':'még '+ft(s.planned-sp)+' hátra'}</span>`:''}</div></div>
+        ${ex.length?`<div class="pb-list">${ex.map(e=>paid(e)?`<div class="pb-row" data-act="edit-expense" data-id="${e.id}"><span class="done-badge sm"><i data-lucide="check"></i></span>
+            <span class="pb-main"><b>${ft(e.amount)}</b><span class="who who-${e.paidBy}">${e.paidBy}</span><span class="pb-d">${esc(e.desc||'')}</span></span>
+            <span class="pb-meta">Kifizetve: <b>${fd(e.date)}</b><br><span class="muted">rögzítve ${dts(e.created)}${e.by?', '+esc(e.by):''}</span></span></div>`
+            :`<div class="pb-row due" data-act="edit-expense" data-id="${e.id}"><span class="chip oak">Fizetendő</span><span class="pb-main"><b>${ft(e.amount)}</b><span class="pb-d">${esc(e.desc||'')}</span></span><span class="pb-meta">${e.due?'határidő: '+fd(e.due):''}</span></div>`).join('')}</div>`:''}
+        ${s.done?'':`<div class="pb-form">
+          <span class="small muted" style="grid-column:1/-1"><b>${ex.length?'Újabb kifizetés':'Tényleges kifizetés'}</b> (pl. előleg vagy végszámla)</span>
+          <label class="f">Összeg<input class="inp" inputmode="numeric" id="pa-${s.id}" placeholder="${s.planned&&s.planned>sp?nf.format(s.planned-sp):'0'}"></label>
+          <label class="f">Dátum<input class="inp" type="date" id="pd-${s.id}" value="${today()}"></label>
+          <div class="f"><span>Ki fizette?</span><div class="seg" id="pw-${s.id}">${PEOPLE.map(p=>`<button type="button" data-pw="${s.id}" data-p="${p}" class="${p===ME?'on':''}">${p}</button>`).join('')}</div></div>
+          <button class="btn primary pb-go" data-act="chap-paid" data-cat="${c.id}" data-id="${s.id}"><span class="done-badge sm"><i data-lucide="check"></i></span>Kifizetve</button>
+        </div>`}
+      </div>
       <div class="chap-a">
         ${s.done?`<button class="btn sm" data-act="chap-reopen" data-cat="${c.id}" data-id="${s.id}"><i data-lucide="pencil"></i>Újranyitás</button>`
-          :`<button class="btn sm" data-act="chap-pay" data-cat="${c.id}" data-id="${s.id}"><i data-lucide="plus"></i>Kifizetés rögzítése</button>
-            <button class="btn sm" data-act="edit-sub" data-cat="${c.id}" data-id="${s.id}"><i data-lucide="pencil"></i>Szerkesztés</button>
+          :`<button class="btn sm" data-act="edit-sub" data-cat="${c.id}" data-id="${s.id}"><i data-lucide="pencil"></i>Név, ikon, megjegyzés</button>
             <button class="btn sm done-btn" data-act="chap-done" data-cat="${c.id}" data-id="${s.id}" style="margin-left:auto"><span class="done-badge sm"><i data-lucide="check"></i></span>Kész</button>`}
       </div></div>`:''}
   </div>`;
@@ -1907,6 +1941,11 @@ document.addEventListener('click',e=>{
     if(act==='nav-fwd')return navFwd();
     if(act==='add-sub')return subModal(a.dataset.cat);
     if(act==='chap-pay')return expenseModal(null,a.dataset.cat,a.dataset.id);
+    if(act==='chap-paid'){const cid=a.dataset.cat,sid=a.dataset.id,c=cat(cid),s=c.subs.find(x=>x.id===sid);
+      const ai=document.getElementById('pa-'+sid);let v=amt(ai.value)||amt(ai.placeholder);if(!v){toast('Írd be a kifizetett összeget');ai.focus();return}
+      const who=(document.querySelector(`#pw-${sid} .on`)||{}).dataset?.p||ME, d=document.getElementById('pd-'+sid).value||today();
+      celebrate(a);S.expenses.push({id:uid(),created:Date.now(),by:ME,catId:cid,subId:sid,desc:s.name,amount:v,paidBy:who,status:'Fizetve',date:d,due:'',planned:0,note:'',locked:true});
+      openChaps.add(sid);flushSave();render();toast('✓ Kifizetve: '+ft(v)+' – '+who);return}
     if(act==='chap-done'){const c=cat(a.dataset.cat),s=c.subs.find(x=>x.id===a.dataset.id);celebrate(a);s.done=true;s.doneDate=today();(s.steps||[]).forEach(x=>x.done=true);openChaps.delete(s.id);syncChapters(c);flushSave();render();toast('🎉 Kész: '+s.name);return}
     if(act==='chap-reopen')return confirmBox('Újranyitod a fejezetet? Utána újra szerkeszthető.',()=>{const c=cat(a.dataset.cat),s=c.subs.find(x=>x.id===a.dataset.id);s.done=false;s.doneDate='';syncChapters(c);flushSave();render()},'Újranyitás');
     if(act==='step-add'){addStep(a.dataset.cat,a.dataset.sub);return}
@@ -1959,6 +1998,8 @@ document.addEventListener('click',e=>{
   if(td){return confirmBox('Biztosan törlöd ezt a teendőt?',()=>{S.tasks=S.tasks.filter(t=>t.id!==td.dataset.taskDel);save();render()})}
   const cpb=e.target.closest('[data-copy]');
   if(cpb){const v=cpb.dataset.copy;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>toast('Másolva: '+v)).catch(()=>toast('A másolás nem sikerült'));return}
+  const pwb=e.target.closest('[data-pw]');
+  if(pwb){document.querySelectorAll(`[data-pw="${pwb.dataset.pw}"]`).forEach(x=>x.classList.toggle('on',x===pwb));return}
   const ch=e.target.closest('[data-chap]');
   if(ch){const id=ch.dataset.chap;openChaps.has(id)?openChaps.delete(id):openChaps.add(id);render();return}
   const bk=e.target.closest('[data-brk]');
@@ -2016,6 +2057,7 @@ document.addEventListener('input',e=>{
   if(t.id==='rec-q'){recQ=t.value;const l=document.getElementById('rec-list');if(l){l.innerHTML=recListHTML();icons()}return}
   if(t.dataset.catRange){document.getElementById('pv').textContent=t.value+'%';cat(t.dataset.catRange).progress=+t.value;saveSoon();return}
   if(t.dataset.money){const c=cat(t.dataset.money);if(c){c.budget=amt(t.value);c.budgetAuto=false;saveSoon()}return}
+  if(t.dataset.chapplan){const [cid,sid]=t.dataset.chapplan.split('|');const c=cat(cid),s=c&&c.subs.find(x=>x.id===sid);if(s){s.planned=amt(t.value);syncChapters(c);saveSoon()}return}
   if(t.dataset.f&&view.startsWith('cat:')){const c=cat(view.slice(4));if(c){c[t.dataset.f]=t.value;saveSoon()}return}
   if(t.dataset.set){S.settings[t.dataset.set]=t.type==='number'?+t.value:t.value;saveSoon();return}
   if(t.dataset.setMoney){S.settings[t.dataset.setMoney]=amt(t.value);saveSoon();return}
@@ -2023,9 +2065,9 @@ document.addEventListener('input',e=>{
 // Mezőből kilépéskor: azonnali mentés + szép számformátum
 document.addEventListener('focusout',e=>{
   const t=e.target;if(!t||t.closest&&t.closest('#layer'))return;
-  const isMoney=t.dataset&&(t.dataset.money!==undefined||t.dataset.setMoney!==undefined||t.dataset.ded==='amount'||(t.dataset.sale&&!/Pct$|investName|investDate/.test(t.dataset.sale)));
+  const isMoney=t.dataset&&(t.dataset.chapplan!==undefined||t.dataset.money!==undefined||t.dataset.setMoney!==undefined||t.dataset.ded==='amount'||(t.dataset.sale&&!/Pct$|investName|investDate/.test(t.dataset.sale)));
   if(isMoney){const v=amt(t.value);t.value=v?nf.format(v):''}
-  if(t.dataset&&(t.dataset.money!==undefined||t.dataset.f||t.dataset.set||t.dataset.setMoney!==undefined||t.dataset.sale||t.dataset.ded||t.dataset.catRange)){flushSave();softRender()}
+  if(t.dataset&&(t.dataset.chapplan||t.dataset.money!==undefined||t.dataset.f||t.dataset.set||t.dataset.setMoney!==undefined||t.dataset.sale||t.dataset.ded||t.dataset.catRange)){flushSave();softRender()}
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.newstep){e.preventDefault();const [cid,sid]=e.target.dataset.newstep.split('|');addStep(cid,sid);return}
