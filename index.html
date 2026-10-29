@@ -156,6 +156,10 @@ h2{font-size:16px;font-weight:700;margin:0;letter-spacing:-.005em}
 .who{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px}
 .who-Bence{background:var(--pine-soft);color:var(--pine)}
 .who-Ancsi{background:var(--oak-soft);color:var(--oak)}
+.whos{display:inline-flex;gap:4px;flex-wrap:wrap}
+.spl{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:var(--surface)}
+.spl-r{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:8px;align-items:center}
+.spl-r .who{text-align:center}
 .who-Közös{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
 
 /* Buttons & forms */
@@ -286,6 +290,7 @@ div.f{display:flex;flex-direction:column;gap:5px}div.f>span:first-child{font-siz
 .pb-meta{font-size:12px;text-align:right;line-height:1.35}
 .pb-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;gap:10px;align-items:end;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
 .pb-go{height:40px}
+.pb-split{grid-column:1/-1}
 .q2{flex-direction:column;align-items:stretch;gap:6px}
 .q2-h{display:flex;align-items:flex-start;gap:12px}.q2-t{flex:1;min-width:0}.q2-t b{display:block;font-size:14.5px}.q2-t .small{display:block}
 .q2-h .amt{font-size:15.5px}
@@ -537,7 +542,7 @@ button.tag{cursor:pointer}
 <div id="print"></div>
 
 <script>
-const APP_VERSION='20 (okt. 29.)';
+const APP_VERSION='21 (okt. 29.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
@@ -674,6 +679,22 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)flushSave()
 function newCat(id,name,icon,color,scope,share){return {id,name,icon,color,scope,share,budget:0,progress:0,start:'',end:'',contractor:'',phone:'',email:'',notes:''}}
 const subOf=e=>{const c=cat(e.catId);return c&&e.subId?(c.subs||[]).find(s=>s.id===e.subId):null};
 const expIcon=e=>{const s=subOf(e);return s?s.icon:(cat(e.catId)||{icon:'receipt'}).icon};
+// Egy kifizetést többen is fizethetnek: e.shares=[{p:'Bence',a:101000},{p:'Ancsi',a:22000}]
+function shares(e){if(e.shares&&e.shares.filter(s=>s.a>0).length)return e.shares.filter(s=>s.a>0);return [{p:e.paidBy||'Bence',a:e.amount||0}]}
+const shareOf=(e,p)=>shares(e).filter(s=>s.p===p).reduce((a,s)=>a+s.a,0);
+const isSplit=e=>shares(e).length>1;
+const whoChips=e=>isSplit(e)?`<span class="whos">${shares(e).map(s=>`<span class="who who-${s.p}">${s.p} ${ft(s.a)}</span>`).join('')}</span>`:`<span class="who who-${shares(e)[0].p}">${shares(e)[0].p}</span>`;
+const whoText=e=>isSplit(e)?shares(e).map(s=>s.p+' '+ft(s.a)).join(' + '):shares(e)[0].p;
+// Megosztás-szerkesztő: a beírt rész után a maradékot automatikusan a másik kapja
+function splitEditorHTML(px,sh){const g=p=>{const x=(sh||[]).find(s=>s.p===p);return x&&x.a?nf.format(x.a):''};
+  return `<div class="spl" id="${px}">${PEOPLE.map(p=>`<label class="spl-r"><span class="who who-${p}">${p}</span><input class="inp" inputmode="numeric" data-spl="${p}" value="${g(p)}" placeholder="0"><span class="muted small">Ft</span></label>`).join('')}<div class="spl-st small" data-splst></div></div>`}
+function wireSplit(root,getTotal){const box=root;if(!box)return;const ins=[...box.querySelectorAll('[data-spl]')];const auto=new Set(ins.filter(i=>!amt(i.value)&&i.dataset.spl!=='Közös').map(i=>i.dataset.spl));
+  const status=()=>{const t=getTotal(),s=ins.reduce((a,i)=>a+amt(i.value),0),st=box.querySelector('[data-splst]');
+    st.innerHTML=!t?'<span class="muted">Előbb add meg a teljes összeget.</span>':s===t?`<span style="color:var(--ok);font-weight:700">✓ Összesen ${ft(t)}</span>`:s<t?`<span style="color:var(--danger);font-weight:600">Még ${ft(t-s)} nincs szétosztva</span>`:`<span style="color:var(--danger);font-weight:600">${ft(s-t)}-tal több, mint a ${ft(t)}</span>`};
+  const fill=from=>{const t=getTotal();if(!t)return status();const tgt=ins.find(i=>i!==from&&auto.has(i.dataset.spl));if(tgt){const rest=t-ins.filter(i=>i!==tgt).reduce((a,i)=>a+amt(i.value),0);tgt.value=rest>0?nf.format(rest):''}status()};
+  ins.forEach(i=>i.addEventListener('input',()=>{fmtLive(i);auto.delete(i.dataset.spl);if(!auto.size&&ins.filter(x=>x!==i&&!amt(x.value)).length)auto.add(ins.find(x=>x!==i&&!amt(x.value)&&x.dataset.spl!=='Közös')?.dataset.spl);fill(i)}));
+  box._refresh=()=>fill(null);status()}
+const readSplit=box=>[...box.querySelectorAll('[data-spl]')].map(i=>({p:i.dataset.spl,a:amt(i.value)})).filter(s=>s.a>0);
 const expPlace=e=>{const c=cat(e.catId)||{name:''},s=subOf(e);return c.name+(s?' · '+s.name:'')};
 function migrate4(){
   if(S.settings.mig4||!cat('terv'))return;
@@ -874,7 +895,7 @@ function spendBreakdown(t){
         <span class="brk-v"><b>${ft(s)}</b><span class="small muted">${pct2(tot?s/tot*100:0)}</span></span><i data-lucide="${open?'chevron-up':'chevron-down'}"></i></button>
       ${open?`<div class="brk-b">
         ${subs.length?`<div class="subpick" style="margin:2px 0 8px">${subs.map(x=>`<span class="tag"><i data-lucide="${x.sb.icon}" style="width:12px;height:12px"></i>${esc(x.sb.name)}: ${ft(x.v)}</span>`).join('')}</div>`:''}
-        ${[...l].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`<div class="sp-row" data-act="edit-expense" data-id="${e.id}" style="cursor:pointer;grid-template-columns:auto auto 1fr auto auto"><span class="muted">${fd(e.date)}</span><i data-lucide="${expIcon(e)}" style="width:14px;height:14px;color:${col(c)}"></i><span class="sp-t">${esc(e.desc||'')}</span><span class="who who-${e.paidBy}">${e.paidBy}</span><b>${ft(e.amount)}</b></div>`).join('')}
+        ${[...l].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`<div class="sp-row" data-act="edit-expense" data-id="${e.id}" style="cursor:pointer;grid-template-columns:auto auto 1fr auto auto"><span class="muted">${fd(e.date)}</span><i data-lucide="${expIcon(e)}" style="width:14px;height:14px;color:${col(c)}"></i><span class="sp-t">${esc(e.desc||'')}</span>${whoChips(e)}<b>${ft(e.amount)}</b></div>`).join('')}
         <button class="btn sm ghost" data-go="cat:${c.id}" style="margin-top:6px">Témakör megnyitása</button></div>`:''}
     </div>`}).join('')}
   <div class="brk-tot"><span>Összesen</span><b>${ft(tot)}</b></div></div>`;
@@ -938,11 +959,11 @@ function renderDash(){
 function expRowC(e){const c=cat(e.catId)||{icon:'receipt',name:'?'},pd=paid(e);
   return `<div class="li cmp" data-act="edit-expense" data-id="${e.id}"><div class="mini-ico" style="--c:${col(c)}"><i data-lucide="${expIcon(e)}"></i></div>
   <div class="grow"><div class="r1"><span class="t">${e.locked?'<i data-lucide="lock" class="lk-mini"></i>':''}${esc(e.desc||c.name)}</span><span class="amt">${ft(e.amount)}</span></div>
-  <div class="r2"><span class="s">${esc(pd?fd(e.date):(e.due?'Határidő: '+fd(e.due):'Fizetendő'))} · ${esc(expPlace(e))}</span>${pd?`<span class="who who-${e.paidBy}">${e.paidBy}</span>`:`<span class="chip oak">Fizetendő</span>`}</div></div></div>`}
+  <div class="r2"><span class="s">${esc(pd?fd(e.date):(e.due?'Határidő: '+fd(e.due):'Fizetendő'))} · ${esc(expPlace(e))}</span>${pd?`${whoChips(e)}`:`<span class="chip oak">Fizetendő</span>`}</div></div></div>`}
 function expRow(e){const c=cat(e.catId)||{icon:'receipt',name:'?'};
   const pd=paid(e), diff=e.planned&&e.planned!==e.amount&&pd?e.amount-e.planned:0;
   const sub=pd?[fd(e.date),expPlace(e),e.note]:[e.due?'Határidő: '+fd(e.due):'Nincs határidő',expPlace(e),e.note];
-  return `<div class="li"><div class="mini-ico" style="--c:${col(c)}"><i data-lucide="${expIcon(e)}"></i></div><div class="grow"><div class="t">${esc(e.desc||c.name)}</div><div class="s">${sub.filter(Boolean).map(esc).join(', ')}${diff?` <span style="color:${diff>0?'var(--danger)':'var(--ok)'};font-weight:600">(${diff>0?'+':'−'}${nf.format(Math.abs(diff))} a tervhez képest)</span>`:''}</div></div>${pd?`<span class="who who-${e.paidBy}">${e.paidBy}</span>`:`<button class="btn sm" data-pay="${e.id}"><i data-lucide="check"></i>Kifizetve</button>`}<span class="amt">${ft(e.amount)}</span>${lockBtn('exp',e.id,e.locked)}<button class="icon-btn" data-act="edit-expense" data-id="${e.id}" aria-label="${e.locked?'Megtekintés':'Szerkesztés'}"><i data-lucide="${e.locked?'eye':'pencil'}"></i></button></div>`}
+  return `<div class="li"><div class="mini-ico" style="--c:${col(c)}"><i data-lucide="${expIcon(e)}"></i></div><div class="grow"><div class="t">${esc(e.desc||c.name)}</div><div class="s">${sub.filter(Boolean).map(esc).join(', ')}${diff?` <span style="color:${diff>0?'var(--danger)':'var(--ok)'};font-weight:600">(${diff>0?'+':'−'}${nf.format(Math.abs(diff))} a tervhez képest)</span>`:''}</div></div>${pd?`${whoChips(e)}`:`<button class="btn sm" data-pay="${e.id}"><i data-lucide="check"></i>Kifizetve</button>`}<span class="amt">${ft(e.amount)}</span>${lockBtn('exp',e.id,e.locked)}<button class="icon-btn" data-act="edit-expense" data-id="${e.id}" aria-label="${e.locked?'Megtekintés':'Szerkesztés'}"><i data-lucide="${e.locked?'eye':'pencil'}"></i></button></div>`}
 
 /* ---------- category ---------- */
 function renderCat(id){
@@ -1230,7 +1251,7 @@ function expSection(list,showCat,h='Kiadások'){
   const pd=list.filter(paid).reduce((s,e)=>s+e.amount,0),pn=list.filter(e=>!paid(e)).reduce((s,e)=>s+e.amount,0);
   const head=['Fizetés dátuma','Megnevezés',...(showCat?['Témakör / alcsoport']:[]),'Fizette','Állapot','Tervezett','Összeg','Megjegyzés','Rögzítve'];
   const off=showCat?1:0;
-  const body=list.map(e=>[paid(e)?fd(e.date):(e.due?'határidő: '+fd(e.due):'–'),e.desc||'',...(showCat?[expPlace(e)]:[]),e.paidBy||'',paid(e)?'Fizetve':'Fizetendő',e.planned?ft(e.planned):'',ft(e.amount),e.note||'',dts(e.created)+(e.by?', '+e.by:'')]);
+  const body=list.map(e=>[paid(e)?fd(e.date):(e.due?'határidő: '+fd(e.due):'–'),e.desc||'',...(showCat?[expPlace(e)]:[]),whoText(e),paid(e)?'Fizetve':'Fizetendő',e.planned?ft(e.planned):'',ft(e.amount),e.note||'',dts(e.created)+(e.by?', '+e.by:'')]);
   const foot=head.map(()=>'');foot[0]='Kifizetve összesen'+(pn?' / még fizetendő':'');foot[5+off]=ft(pd)+(pn?'\n'+ft(pn):'');
   return {h,head,body,foot:list.length?foot:null,right:[4+off,5+off],empty:'Nincs kiadás.'};
 }
@@ -1246,8 +1267,8 @@ function specCat(id){
       ...(tasks.length?[{h:'Nyitott feladatok',head:['Feladat','Ki csinálja','Határidő','Címkék','Megjegyzés'],body:tasks.map(t=>[t.title,t.who||'',t.due?fd(t.due):'',(t.tags||[]).map(g=>'#'+g).join(' '),t.note||''])}]:[])]};
 }
 function specExp(){
-  let list=[...S.expenses];if(filt.cat)list=list.filter(e=>e.catId===filt.cat);if(filt.who)list=list.filter(e=>e.paidBy===filt.who);
-  const by=p=>list.filter(e=>paid(e)&&e.paidBy===p).reduce((s,e)=>s+e.amount,0);
+  let list=[...S.expenses];if(filt.cat)list=list.filter(e=>e.catId===filt.cat);if(filt.who)list=list.filter(e=>shareOf(e,filt.who)>0);
+  const by=p=>list.filter(paid).reduce((s,e)=>s+shareOf(e,p),0);
   return {title:'Kiadások kivonata',sub:[filt.cat?(cat(filt.cat)||{}).name:'Minden témakör',filt.who||'mindenki'].join(' · '),
     sums:[['Bence fizette',ft(by('Bence'))],['Ancsi fizette',ft(by('Ancsi'))],['Közös',ft(by('Közös'))],['Tételek',list.length+' db'],['Kifizetve összesen',ft(list.filter(paid).reduce((s,e)=>s+e.amount,0))]],
     sections:[expSection(list,true)]};
@@ -1263,11 +1284,11 @@ function specAll(){
 }
 function specPay(){
   const all=S.expenses.filter(paid).sort((a,b)=>a.date.localeCompare(b.date));
-  const by=p=>all.filter(e=>e.paidBy===p).reduce((s,e)=>s+e.amount,0);
+  const by=p=>all.reduce((s,e)=>s+shareOf(e,p),0);
   return {title:'Kifizetések',sub:'Ki, mikor, mit fizetett',
     sums:(()=>{const k=by('Közös'),b=by('Bence')+k/2,a=by('Ancsi')+k/2,t=a+b||1;return [['Bence · '+pct2(b/t*100),ft(by('Bence'))],['Ancsi · '+pct2(a/t*100),ft(by('Ancsi'))],['Közös',ft(k)],['Tételek',all.length+' db'],['Összesen',ft(all.reduce((s,e)=>s+e.amount,0))]]})(),
     sections:[{h:'Kifizetések időrendben',head:['Dátum','Ki fizette','Megnevezés','Témakör','Összeg','Megjegyzés','Rögzítve'],right:[4],
-      body:all.map(e=>[fd(e.date),e.paidBy||'',e.desc||'',(cat(e.catId)||{}).name||'',ft(e.amount),e.note||'',dts(e.created)+(e.by?', '+e.by:'')]),
+      body:all.map(e=>[fd(e.date),whoText(e),e.desc||'',(cat(e.catId)||{}).name||'',ft(e.amount),e.note||'',dts(e.created)+(e.by?', '+e.by:'')]),
       foot:['Összesen','','','',ft(all.reduce((s,e)=>s+e.amount,0)),'','']}]};
 }
 const PDF_LIBS=['https://cdn.jsdelivr.net/npm/jspdf@3.0.4/dist/jspdf.umd.min.js','https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.8/dist/jspdf.plugin.autotable.min.js'];
@@ -1307,7 +1328,7 @@ async function printReport(kind,id,extra){
 function renderExpenses(){
   let ex=[...S.expenses];
   if(filt.cat)ex=ex.filter(e=>e.catId===filt.cat);
-  if(filt.who)ex=ex.filter(e=>e.paidBy===filt.who);
+  if(filt.who)ex=ex.filter(e=>shareOf(e,filt.who)>0);
   ex.sort((a,b)=>b.date.localeCompare(a.date));
   const sum=ex.filter(paid).reduce((a,e)=>a+e.amount,0);
   const groups={};ex.forEach(e=>{const k=(paid(e)?e.date:(e.due||e.date)).slice(0,7);(groups[k]=groups[k]||[]).push(e)});
@@ -1355,14 +1376,15 @@ function chapterRow(c,s){
         <div class="pb-plan"><label class="f">Tervezett / ajánlat szerinti összeg<input class="inp" inputmode="numeric" data-chapplan="${c.id}|${s.id}" value="${s.planned?nf.format(s.planned):''}" placeholder="pl. 250 000" ${s.done?'readonly':''}></label>
           <div class="pb-sum"><span class="kpi-lbl">Kifizetve</span><b>${ft(sp)}</b>${s.planned?`<span class="small" style="color:${sp>s.planned?'var(--danger)':sp===s.planned?'var(--ok)':'var(--muted)'}">${sp>s.planned?'+'+ft(sp-s.planned)+' a tervhez képest':sp===s.planned?'pontosan a terv szerint ✓':'még '+ft(s.planned-sp)+' hátra'}</span>`:''}</div></div>
         ${ex.length?`<div class="pb-list">${ex.map(e=>paid(e)?`<div class="pb-row" data-act="edit-expense" data-id="${e.id}"><span class="done-badge sm"><i data-lucide="check"></i></span>
-            <span class="pb-main"><b>${ft(e.amount)}</b><span class="who who-${e.paidBy}">${e.paidBy}</span><span class="pb-d">${esc(e.desc||'')}</span></span>
+            <span class="pb-main"><b>${ft(e.amount)}</b>${whoChips(e)}<span class="pb-d">${esc(e.desc||'')}</span></span>
             <span class="pb-meta">Kifizetve: <b>${fd(e.date)}</b><br><span class="muted">rögzítve ${dts(e.created)}${e.by?', '+esc(e.by):''}</span></span></div>`
             :`<div class="pb-row due" data-act="edit-expense" data-id="${e.id}"><span class="chip oak">Fizetendő</span><span class="pb-main"><b>${ft(e.amount)}</b><span class="pb-d">${esc(e.desc||'')}</span></span><span class="pb-meta">${e.due?'határidő: '+fd(e.due):''}</span></div>`).join('')}</div>`:''}
         ${s.done?'':`<div class="pb-form">
           <span class="small muted" style="grid-column:1/-1"><b>${ex.length?'Újabb kifizetés':'Tényleges kifizetés'}</b> (pl. előleg vagy végszámla)</span>
           <label class="f">Összeg<input class="inp" inputmode="numeric" id="pa-${s.id}" placeholder="${s.planned&&s.planned>sp?nf.format(s.planned-sp):'0'}"></label>
           <label class="f">Dátum<input class="inp" type="date" id="pd-${s.id}" value="${today()}"></label>
-          <div class="f"><span>Ki fizette?</span><div class="seg" id="pw-${s.id}">${PEOPLE.map(p=>`<button type="button" data-pw="${s.id}" data-p="${p}" class="${p===ME?'on':''}">${p}</button>`).join('')}</div></div>
+          <div class="f"><span>Ki fizette?</span><div class="seg" id="pw-${s.id}">${[...PEOPLE,'Megosztva'].map(p=>`<button type="button" data-pw="${s.id}" data-p="${p}" class="${p===ME?'on':''}">${p}</button>`).join('')}</div></div>
+          <div class="pb-split" id="pbs-${s.id}" hidden>${splitEditorHTML('psp-'+s.id,[])}</div>
           <button class="btn primary pb-go" data-act="chap-paid" data-cat="${c.id}" data-id="${s.id}"><span class="done-badge sm"><i data-lucide="check"></i></span>Kifizetve</button>
         </div>`}
       </div>
@@ -1382,13 +1404,13 @@ function syncChapters(c){const subs=c.subs||[];if(!subs.length)return;
 function renderSettle(){
   const all=S.expenses.filter(paid);
   const people=['Bence','Ancsi','Közös'];
-  const sum=p=>all.filter(e=>e.paidBy===p).reduce((a,e)=>a+e.amount,0);
+  const sum=p=>all.reduce((a,e)=>a+shareOf(e,p),0);
   const k=sum('Közös'),b=sum('Bence')+k/2,a=sum('Ancsi')+k/2,pers=a+b||1;
   const list=[...all].sort((x,y)=>y.date.localeCompare(x.date)||(y.created||0)-(x.created||0));
   const groups={};list.forEach(e=>{const m=e.date.slice(0,7);(groups[m]=groups[m]||[]).push(e)});
   const row=e=>{const c=cat(e.catId)||{icon:'receipt',name:''};const si=expIcon(e),sn=expPlace(e);return `<div class="tl" data-act="edit-expense" data-id="${e.id}">
         <div class="tl-date"><b>${toD(e.date).getDate()}.</b><span>${toD(e.date).toLocaleDateString('hu-HU',{weekday:'short'})}</span></div>
-        <span class="who who-${e.paidBy}">${e.paidBy}</span>
+        ${whoChips(e)}
         <div class="grow" style="min-width:0"><div class="t">${esc(e.desc||c.name)}</div><div class="s small muted" style="display:flex;align-items:center;gap:6px"><span class="mini-ico" style="--c:${col(c)};width:18px;height:18px;border-radius:5px"><i data-lucide="${si}"></i></span>${esc(sn)}${e.note?', '+esc(e.note):''}</div></div>
         <span class="amt">${ft(e.amount)}</span></div>`};
   return `<div class="page-head"><div><h1>Kifizetések</h1><p class="sub">Időrendben: mi, mikor és kitől ment a közös otthonra.</p></div>
@@ -1398,9 +1420,9 @@ function renderSettle(){
     <div class="split-bar" style="height:10px;margin:0 0 6px"><i style="width:${b/pers*100}%;background:var(--pine)"></i><i style="width:${a/pers*100}%;background:var(--oak)"></i></div>
     <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:14px;gap:10px;flex-wrap:wrap"><span><b style="color:var(--pine)">Bence ${pct2(b/pers*100)}</b> · ${ft(b)}</span><span><b style="color:var(--oak)">Ancsi ${pct2(a/pers*100)}</b> · ${ft(a)}</span></div>
     ${k?`<div class="small muted" style="margin:-8px 0 14px">A közösből fizetett ${ft(k)} fele-fele arányban számít bele.</div>`:''}
-    ${showSplit?`<div class="split-cols" style="border-top:1px solid var(--line);padding-top:14px">${people.map(p=>{const l=all.filter(e=>e.paidBy===p).sort((x,y)=>y.date.localeCompare(x.date));const s=sum(p);
+    ${showSplit?`<div class="split-cols" style="border-top:1px solid var(--line);padding-top:14px">${people.map(p=>{const l=all.filter(e=>shareOf(e,p)>0).sort((x,y)=>y.date.localeCompare(x.date));const s=sum(p);
       return `<div><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="who who-${p}">${p}</span><b>${ft(s)}</b><span class="muted small">${l.length} tétel</span></div>
-      ${l.length?l.map(e=>`<div class="sp-row"><span class="muted">${fd(e.date)}</span><span class="sp-t">${esc(e.desc||(cat(e.catId)||{}).name||'')}</span><b>${ft(e.amount)}</b></div>`).join(''):'<div class="small muted" style="margin-top:8px">Nincs tétel.</div>'}</div>`}).join('')}</div>`:''}
+      ${l.length?l.map(e=>`<div class="sp-row"><span class="muted">${fd(e.date)}</span><span class="sp-t">${esc(e.desc||(cat(e.catId)||{}).name||'')}${isSplit(e)?` <span class="muted">(${ft(e.amount)}-ból)</span>`:''}</span><b>${ft(shareOf(e,p))}</b></div>`).join(''):'<div class="small muted" style="margin-top:8px">Nincs tétel.</div>'}</div>`}).join('')}</div>`:''}
   </div>
   <div class="panel">
     ${list.length?Object.entries(groups).map(([m,l])=>`<div class="month-h"><span>${toD(m+'-15').toLocaleDateString('hu-HU',{year:'numeric',month:'long'})}</span><span>${ft(l.reduce((s,e)=>s+e.amount,0))}</span></div>${l.map(row).join('')}`).join(''):'<div class="empty">Még nincs kifizetett tétel.</div>'}
@@ -1641,7 +1663,7 @@ const isMoneyEl=t=>t.matches&&(t.matches('[inputmode="numeric"]')||(t.dataset.sa
 function moneyInput(el){el.addEventListener('input',()=>fmtLive(el))}
 function expenseModal(e,preCat,preSub){
   const ed=!!e; e=e||{amount:0,catId:preCat||(view.startsWith('cat:')?view.slice(4):''),paidBy:ME,desc:'',date:today(),status:'Fizetve',due:'',planned:0,note:''};
-  let sel=e.catId, who=e.paidBy, st=e.status||'Fizetve', sub=e.subId||preSub||'';
+  let sel=e.catId, who=(e.shares&&e.shares.filter(s=>s.a>0).length>1)?'Megosztva':e.paidBy, st=e.status||'Fizetve', sub=e.subId||preSub||'';
   const subsHTML=()=>{const c=cat(sel);const l=(c&&c.subs)||[];return l.length?`<div style="margin:12px 0 6px" class="small muted"><b>Fejezet</b></div><div class="subpick">${l.map(s=>`<button type="button" data-msub="${s.id}" class="${sub===s.id?'on':''}"><span class="pick-ico" style="--c:${col(c)};width:24px;height:24px;border-radius:7px"><i data-lucide="${s.icon}"></i></span>${esc(s.name)}</button>`).join('')}<button type="button" data-msub="" class="${sub?'':'on'}">Nincs</button></div>`:''};
   nextLock=ed?{get:()=>S.expenses.find(x=>x.id===e.id),reopen:()=>expenseModal(S.expenses.find(x=>x.id===e.id))}:null;
   modal(`<h3>${ed?'Kiadás szerkesztése':'Új kiadás'}</h3>
@@ -1650,7 +1672,8 @@ function expenseModal(e,preCat,preSub){
     <div class="cat-pick">${S.cats.map(c=>`<button type="button" data-pick="${c.id}" class="${sel===c.id?'on':''}"><span class="pick-ico" style="--c:${col(c)}"><i data-lucide="${c.icon}"></i></span>${esc(c.name)}</button>`).join('')}</div>
     <div id="m-subs">${subsHTML()}</div>
     <div style="margin:14px 0 6px" class="small muted"><b>Ki fizette</b></div>
-    <div class="seg">${PEOPLE.map(p=>`<button type="button" data-who="${p}" class="${who===p?'on':''}">${p}</button>`).join('')}</div>
+    <div class="seg">${[...PEOPLE,'Megosztva'].map(p=>`<button type="button" data-who="${p}" class="${who===p?'on':''}">${p}</button>`).join('')}</div>
+    <div id="m-split" ${who==='Megosztva'?'':'hidden'}>${splitEditorHTML('m-spl',e.shares)}</div>
     <div style="margin:14px 0 6px" class="small muted"><b>Állapot</b></div>
     <div class="seg">${['Fizetve','Fizetendő'].map(p=>`<button type="button" data-st="${p}" class="${st===p?'on':''}">${p}</button>`).join('')}</div>
     <div class="form-grid" style="margin-top:14px"><label class="f full">Mire<input class="inp" id="m-desc" value="${esc(e.desc)}" placeholder="pl. 20 zsák cement"></label>
@@ -1663,7 +1686,10 @@ function expenseModal(e,preCat,preSub){
     if(!a){toast('Add meg az összeget');return false}
     if(!sel){toast('Válassz témakört');return false}
     const cs=cat(sel);if(sub&&!((cs&&cs.subs)||[]).some(x=>x.id===sub))sub='';
-    const rec={amount:a,catId:sel,subId:sub,paidBy:who,status:st,desc:bd.querySelector('#m-desc').value.trim(),date:bd.querySelector('#m-date').value||today(),due:bd.querySelector('#m-due').value,planned:amt(bd.querySelector('#m-plan').value),note:bd.querySelector('#m-note').value.trim()};
+    let shr=[];if(who==='Megosztva'){shr=readSplit(bd.querySelector('#m-spl'));const s=shr.reduce((x,y)=>x+y.a,0);
+      if(shr.length<2){toast('Megosztásnál legalább két ember részét add meg');return false}
+      if(s!==a){toast(s<a?'Még '+ft(a-s)+' nincs szétosztva':'A részek összege több, mint a teljes összeg');return false}}
+    const rec={amount:a,catId:sel,subId:sub,paidBy:who==='Megosztva'?'Megosztva':who,shares:shr,status:st,desc:bd.querySelector('#m-desc').value.trim(),date:bd.querySelector('#m-date').value||today(),due:bd.querySelector('#m-due').value,planned:amt(bd.querySelector('#m-plan').value),note:bd.querySelector('#m-note').value.trim()};
     let tg;if(ed){tg=S.expenses.find(x=>x.id===e.id);Object.assign(tg,rec)}else{tg={id:uid(),created:Date.now(),by:ME,...rec};S.expenses.push(tg)}
     if(tg.subId)openChaps.add(tg.subId);
     if(tg.status!=='Fizetendő')tg.locked=true; // ami ki van fizetve, az rögzített
@@ -1672,7 +1698,9 @@ function expenseModal(e,preCat,preSub){
     bd.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{st=b.dataset.st;bd.querySelector('#m-date-l').hidden=st==='Fizetendő';bd.querySelectorAll('[data-st]').forEach(x=>x.classList.toggle('on',x===b))});
     const wireSubs=()=>bd.querySelectorAll('[data-msub]').forEach(b=>b.onclick=()=>{sub=b.dataset.msub;bd.querySelectorAll('[data-msub]').forEach(x=>x.classList.toggle('on',x===b))});wireSubs();
     bd.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{if(sel!==b.dataset.pick)sub='';sel=b.dataset.pick;bd.querySelectorAll('[data-pick]').forEach(x=>x.classList.toggle('on',x===b));bd.querySelector('#m-subs').innerHTML=subsHTML();icons();wireSubs()});
-    bd.querySelectorAll('[data-who]').forEach(b=>b.onclick=()=>{who=b.dataset.who;bd.querySelectorAll('[data-who]').forEach(x=>x.classList.toggle('on',x===b))});
+    const spl=bd.querySelector('#m-spl');wireSplit(spl,()=>amt(bd.querySelector('#m-amt').value));
+    bd.querySelector('#m-amt').addEventListener('input',()=>spl._refresh&&spl._refresh());
+    bd.querySelectorAll('[data-who]').forEach(b=>b.onclick=()=>{who=b.dataset.who;bd.querySelectorAll('[data-who]').forEach(x=>x.classList.toggle('on',x===b));bd.querySelector('#m-split').hidden=who!=='Megosztva';if(who==='Megosztva')spl._refresh()});
     bd.querySelector('[data-m="del"]')?.addEventListener('click',()=>confirmBox('Biztosan törlöd ezt a kiadást?',()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);save();render();toast('Kiadás törölve')}));
   });
 }
@@ -1944,8 +1972,11 @@ document.addEventListener('click',e=>{
     if(act==='chap-paid'){const cid=a.dataset.cat,sid=a.dataset.id,c=cat(cid),s=c.subs.find(x=>x.id===sid);
       const ai=document.getElementById('pa-'+sid);let v=amt(ai.value)||amt(ai.placeholder);if(!v){toast('Írd be a kifizetett összeget');ai.focus();return}
       const who=(document.querySelector(`#pw-${sid} .on`)||{}).dataset?.p||ME, d=document.getElementById('pd-'+sid).value||today();
-      celebrate(a);S.expenses.push({id:uid(),created:Date.now(),by:ME,catId:cid,subId:sid,desc:s.name,amount:v,paidBy:who,status:'Fizetve',date:d,due:'',planned:0,note:'',locked:true});
-      openChaps.add(sid);flushSave();render();toast('✓ Kifizetve: '+ft(v)+' – '+who);return}
+      let shr=[];if(who==='Megosztva'){shr=readSplit(document.getElementById('psp-'+sid));const sm=shr.reduce((x,y)=>x+y.a,0);
+        if(shr.length<2){toast('Megosztásnál legalább két ember részét add meg');return}
+        if(sm!==v){toast(sm<v?'Még '+ft(v-sm)+' nincs szétosztva':'A részek összege több, mint a teljes összeg');return}}
+      celebrate(a);const ne={id:uid(),created:Date.now(),by:ME,catId:cid,subId:sid,desc:s.name,amount:v,paidBy:who,shares:shr,status:'Fizetve',date:d,due:'',planned:0,note:'',locked:true};S.expenses.push(ne);
+      openChaps.add(sid);flushSave();render();toast('✓ Kifizetve: '+ft(v)+' – '+whoText(ne));return}
     if(act==='chap-done'){const c=cat(a.dataset.cat),s=c.subs.find(x=>x.id===a.dataset.id);celebrate(a);s.done=true;s.doneDate=today();(s.steps||[]).forEach(x=>x.done=true);openChaps.delete(s.id);syncChapters(c);flushSave();render();toast('🎉 Kész: '+s.name);return}
     if(act==='chap-reopen')return confirmBox('Újranyitod a fejezetet? Utána újra szerkeszthető.',()=>{const c=cat(a.dataset.cat),s=c.subs.find(x=>x.id===a.dataset.id);s.done=false;s.doneDate='';syncChapters(c);flushSave();render()},'Újranyitás');
     if(act==='step-add'){addStep(a.dataset.cat,a.dataset.sub);return}
@@ -1999,7 +2030,9 @@ document.addEventListener('click',e=>{
   const cpb=e.target.closest('[data-copy]');
   if(cpb){const v=cpb.dataset.copy;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>toast('Másolva: '+v)).catch(()=>toast('A másolás nem sikerült'));return}
   const pwb=e.target.closest('[data-pw]');
-  if(pwb){document.querySelectorAll(`[data-pw="${pwb.dataset.pw}"]`).forEach(x=>x.classList.toggle('on',x===pwb));return}
+  if(pwb){const sid=pwb.dataset.pw;document.querySelectorAll(`[data-pw="${sid}"]`).forEach(x=>x.classList.toggle('on',x===pwb));
+    const box=document.getElementById('pbs-'+sid);if(box){box.hidden=pwb.dataset.p!=='Megosztva';const sp=document.getElementById('psp-'+sid),ai=document.getElementById('pa-'+sid);
+      if(!sp._wired){sp._wired=1;wireSplit(sp,()=>amt(ai.value)||amt(ai.placeholder));ai.addEventListener('input',()=>sp._refresh())}sp._refresh()}return}
   const ch=e.target.closest('[data-chap]');
   if(ch){const id=ch.dataset.chap;openChaps.has(id)?openChaps.delete(id):openChaps.add(id);render();return}
   const bk=e.target.closest('[data-brk]');
