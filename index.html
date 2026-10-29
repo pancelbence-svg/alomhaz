@@ -274,6 +274,24 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
   .li{flex-wrap:wrap;row-gap:6px}.li>.grow{flex:1 1 55%;min-width:0}
   .kpis{grid-template-columns:1fr 1fr!important}
 }
+.chap{border-top:1px solid var(--line)}
+.chap:first-of-type{border-top:0}
+.chap-h{display:grid;grid-template-columns:30px 1fr 18px;gap:12px;align-items:center;width:100%;border:0;background:none;padding:10px 4px;cursor:pointer;text-align:left;color:var(--ink);border-radius:10px}
+.chap-h:hover{background:var(--surface2)}
+.chap-h>svg.lucide{color:var(--muted)}
+.chap-n{min-width:0}.chap-n b{font-size:14.5px;font-weight:600}.chap-n .small{display:block;margin-top:2px}.chap-n .bar{display:flex}
+.chap.done .chap-n b{color:var(--ok)}
+.chap-b{padding:4px 6px 14px 46px}
+.chap-a{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.steps{display:flex;flex-direction:column;gap:2px}
+.step{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:9px;cursor:pointer;font-size:14px}
+.step:hover{background:var(--surface2)}
+.step input{width:19px;height:19px;accent-color:var(--ok);flex:none}
+.step span{flex:1}
+.step.ok span{color:var(--muted);text-decoration:line-through}
+.step .icon-btn{opacity:0;padding:3px}.step:hover .icon-btn{opacity:.7}
+.step-add{display:flex;gap:8px;margin-top:6px}.step-add .inp{flex:1}
+@media (max-width:820px){.chap-b{padding-left:6px}.step .icon-btn{opacity:.6}}
 .done-badge{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--ok);color:#fff;flex:none;box-shadow:0 4px 12px color-mix(in srgb,var(--ok) 35%,transparent)}
 .done-badge svg.lucide{width:17px;height:17px;stroke-width:3}
 .done-badge.big{width:42px;height:42px}.done-badge.big svg.lucide{width:22px;height:22px}
@@ -500,7 +518,7 @@ button.tag{cursor:pointer}
 <div id="print"></div>
 
 <script>
-const APP_VERSION='18 (okt. 29.)';
+const APP_VERSION='19 (okt. 29.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
@@ -638,6 +656,27 @@ function newCat(id,name,icon,color,scope,share){return {id,name,icon,color,scope
 const subOf=e=>{const c=cat(e.catId);return c&&e.subId?(c.subs||[]).find(s=>s.id===e.subId):null};
 const expIcon=e=>{const s=subOf(e);return s?s.icon:(cat(e.catId)||{icon:'receipt'}).icon};
 const expPlace=e=>{const c=cat(e.catId)||{name:''},s=subOf(e);return c.name+(s?' · '+s.name:'')};
+function migrate4(){
+  if(S.settings.mig4||!cat('terv'))return;
+  const c=cat('terv');c.subs=c.subs||[];
+  let roo=(S.records||[]).find(r=>/roomino/i.test(r.title||''));
+  if(!roo){roo={id:uid(),type:'Partner / kivitelező',title:'Roomino Kft.',status:'',note:'Építészeti tervezés – egyszerű bejelentési tervdokumentáció',
+    fields:[{k:'Szakterület',v:'Építészeti tervezés'},{k:'Kapcsolattartó',v:'Nagy Sándor, okl. építészmérnök (É 02-1528)'},{k:'Telefon',v:'+36 70 850 9080'},{k:'E-mail',v:''},{k:'Weboldal',v:''},{k:'Adószám',v:'27961616-2-02'},{k:'Cím',v:'7673 Cserkút, Petőfi Sándor u. 21/2.'},{k:'Cégjegyzékszám',v:'02-09-085130'}]};S.records.push(roo)}
+  if(!S.quotes.some(q=>q.partnerId===roo.id))S.quotes.push({id:uid(),created:Date.now(),by:ME,catId:'terv',partnerId:roo.id,vendor:'Tervezés – egyszerű bejelentési dokumentáció',amount:2743800,date:'2026-10-28',validUntil:'2026-11-12',status:'Beérkezett',
+    duration:'60 munkanap a szerződés aláírásától',warranty:'',pros:'',cons:'A szakági összegek becsültek (~)\nA díj ~120 m²-re szól, nagyobb alapterületnél nő',
+    note:'Építészeti tervezés: ~120 m² × 12 000 Ft + 27% ÁFA = 1 828 800 Ft (nettó 1 440 000 Ft). Csak II.1 rendelése esetén a nettó díj 50%-a.\nSzakági (alanyi adómentes, a szaktervezők közvetlenül számláznak): statika ~450 000, gépészet 120 000, villamos 90 000, geodézia ~250 000, térképmásolat 5 000, talajmechanika 0 (opcionális) = 915 000 Ft.\nNem tartalmazza: közműterveket, kiviteli terveket, kerttervet, parkoló/útcsatlakozás terveket, környezetvédelmi tervfejezetet, mennyiségszámítást.'});
+  const add=(name,icon,planned,note,steps,opt)=>{if(!c.subs.some(s=>s.name===name))c.subs.push({id:'s'+uid(),name,icon,planned,note,optional:!!opt,done:false,steps:(steps||[]).map(t=>({id:uid(),t,done:false}))})};
+  add('Építészeti tervezés – Roomino','ruler',1828800,'~120 m² × 12 000 Ft/m² + 27% ÁFA (nettó 1 440 000 Ft). Ha csak a II.1 munkarész kell, a nettó díj 50%-a.',
+    ['I. Beépíthetőség vizsgálata','I. Főépítészi egyeztetés','I. Tervezési program összeállítása','II.1 Koncepcióterv','II.1 Jóváhagyási terv','II.2 Tervcsomag elkészítése','II.2 Szaktervezők bevonása','II.2 ETDR bejelentés']);
+  add('Statika (tartószerkezeti terv)','layers',450000,'~ becsült összeg, szakértői nyilatkozattal. Alanyi adómentes.');
+  add('Gépészet, hőszükséglet-számítás','flame',120000,'Alanyi adómentes.');
+  add('Villamos leírás','zap',90000,'Alanyi adómentes.');
+  add('Geodézia','map-pin',250000,'~ becsült összeg.');
+  add('Térképmásolat','file-text',5000,'');
+  add('Talajmechanika','shovel',0,'Opcionális, a helyszíntől függ.',[],true);
+  if(!S.tasks.some(t=>/roomino/i.test(t.title)))S.tasks.push(tk('terv','Roomino tervezői ajánlat elfogadása',false,'2026-11-12','Bence','Az ajánlat 15 napig érvényes (2026.10.28-tól)'));
+  syncChapters(c);S.settings.mig4=true;save();
+}
 function migrate3(){
   if(S.settings.mig3)return;
   S.expenses.forEach(e=>{if(e.status!=='Fizetendő')e.locked=true});
@@ -686,7 +725,7 @@ const APP={
     if(pendSettings&&pendSettings!==rj){S.settings=JSON.parse(pendSettings);syncedSettings=pendSettings;return}
     pendSettings=null;S.settings=s||{};syncedSettings=rj;scheduleRender()},
   seedAll(){const d=seed();READY=true;Object.assign(S,d);save()},
-  ready(email){if(APP._ready)return;APP._ready=true;ME=USERS[(email||'').toLowerCase()]||'Bence';READY=true;migrate();migrate2();migrate3();scheduleRender(true)},
+  ready(email){if(APP._ready)return;APP._ready=true;ME=USERS[(email||'').toLowerCase()]||'Bence';READY=true;migrate();migrate2();migrate3();migrate4();scheduleRender(true)},
   setStatus(st){lastSt=st;const el=document.getElementById('sync-st');if(!el)return;
     const m={ok:['','Szinkronizálva'],pending:['off','Mentés folyamatban…'],offline:['off','Offline – net után szinkronizál'],error:['err','Hiba a szinkronban']}[st]||['','Szinkronizálva'];
     el.innerHTML=`<span class="sdot ${m[0]}"></span>${m[1]}`;
@@ -898,9 +937,7 @@ function renderCat(id){
   <div class="cat-head"><div class="ico" style="--c:${col(c)}"><i data-lucide="${c.icon}"></i></div>
     <div style="flex:1;min-width:200px"><h1>${esc(c.name)}</h1><p class="sub">${c.scope==='haz'?'A házkeret része':'A házkereten kívüli tétel'}</p></div>
     <span class="chip ${stc}">${st}</span>${lockBtn('cat',id,c.locked)}<button class="btn" data-act="pdf" data-kind="cat" data-id="${id}"><i data-lucide="printer"></i>PDF kivonat</button></div>
-  <div class="subbar">${subs.map(s=>`<button class="subchip ${fsub===s.id?'on':''}" data-subf="${s.id}" data-cat="${id}"><span class="mini-ico" style="--c:${col(c)};width:26px;height:26px;border-radius:8px"><i data-lucide="${s.icon}"></i></span><span><b>${esc(s.name)}</b><span class="small muted">${ft(subSum(s.id))}</span></span>${fsub===s.id?`<span class="icon-btn" data-act="edit-sub" data-cat="${id}" data-id="${s.id}" title="Alcsoport szerkesztése" style="padding:3px"><i data-lucide="pencil"></i></span>`:''}</button>`).join('')}
-    ${subs.length&&subSum('_none')?`<button class="subchip ${fsub==='_none'?'on':''}" data-subf="_none" data-cat="${id}"><span><b>Egyéb</b><span class="small muted">${ft(subSum('_none'))}</span></span></button>`:''}
-    <button class="subchip add" data-act="add-sub" data-cat="${id}"><i data-lucide="plus"></i><span>Alcsoport</span></button></div>
+  ${chapterPanel(c)}
   <div class="panel progress-panel">
     <div class="big" id="pv">${c.progress}%</div>
     <input type="range" min="0" max="100" step="5" value="${c.progress}" data-cat-range="${id}" aria-label="Készültség">
@@ -1180,7 +1217,7 @@ function specCat(id){
   const qs=S.quotes.filter(q=>q.catId===id), tasks=S.tasks.filter(t=>t.catId===id&&tStat(t)!=='done');
   return {title:c.name,sub:[(c.scope==='haz'?'A házkeret része':'Házkereten kívüli tétel'),c.contractor?'Kivitelező: '+c.contractor:'','Készültség: '+c.progress+'%'].filter(Boolean).join(' · '),
     sums:[['Keret',c.budget?ft(c.budget):'–'],['Kifizetve',ft(sp)],['Lekötve (ajánlat)',ft(cm)],['Fizetendő',ft(pn)],['Maradék',c.budget?ft(rem):'–']],
-    sections:[...((c.subs||[]).length?[{h:'Alcsoportok',head:['Alcsoport','Tételek','Kifizetve'],right:[1,2],body:[...c.subs.map(s=>{const l=S.expenses.filter(e=>e.catId===id&&e.subId===s.id);return [s.name,l.length+' db',ft(l.filter(paid).reduce((x,e)=>x+e.amount,0))]}),...(S.expenses.some(e=>e.catId===id&&!subOf(e))?[['Egyéb (alcsoport nélkül)',S.expenses.filter(e=>e.catId===id&&!subOf(e)).length+' db',ft(S.expenses.filter(e=>e.catId===id&&!subOf(e)&&paid(e)).reduce((x,e)=>x+e.amount,0))]]:[])]}]:[]),
+    sections:[...((c.subs||[]).length?[{h:'Fejezetek',head:['Fejezet','Tervezett','Kifizetve','Állapot'],right:[1,2],body:[...c.subs.map(s=>{const l=S.expenses.filter(e=>e.catId===id&&e.subId===s.id);return [s.name+(s.optional?' (opcionális)':''),s.planned?ft(s.planned):'–',ft(l.filter(paid).reduce((x,e)=>x+e.amount,0)),s.done?'Kész ✓ '+(s.doneDate?fd(s.doneDate):''):((s.steps||[]).length?`${s.steps.filter(x=>x.done).length}/${s.steps.length} lépés`:'Folyamatban')]}),...(S.expenses.some(e=>e.catId===id&&!subOf(e))?[['Egyéb (fejezet nélkül)','–',ft(S.expenses.filter(e=>e.catId===id&&!subOf(e)&&paid(e)).reduce((x,e)=>x+e.amount,0)),'']]:[])]}]:[]),
       expSection(S.expenses.filter(e=>e.catId===id),true),
       ...(qs.length?[{h:'Árajánlatok',head:['Ajánlattevő','Megnevezés','Állapot','Összeg','Tartalmazza','Előnyök','Hátrányok'],right:[3],
         body:qs.map(q=>[qName(q)||'',q.partnerId?q.vendor||'':'',q.status||'',ft(q.amount),q.note||'',lines(q.pros).map(x=>'+ '+x).join('\n'),lines(q.cons).map(x=>'− '+x).join('\n')])}]:[]),
@@ -1266,6 +1303,48 @@ function renderExpenses(){
 const pct2=v=>(v||0).toLocaleString('hu-HU',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 let showSplit=false;
 const subFilter={};
+const openChaps=new Set();
+const chPaid=(cid,sid)=>S.expenses.filter(e=>e.catId===cid&&e.subId===sid&&paid(e)).reduce((a,e)=>a+e.amount,0);
+const chPend=(cid,sid)=>S.expenses.filter(e=>e.catId===cid&&e.subId===sid&&!paid(e)).reduce((a,e)=>a+e.amount,0);
+function chapterPanel(c){
+  const subs=c.subs||[];const planned=subs.reduce((a,s)=>a+(s.planned||0),0),spentAll=subs.reduce((a,s)=>a+chPaid(c.id,s.id),0),doneN=subs.filter(s=>s.done).length;
+  return `<div class="panel chaps" style="margin-bottom:22px">
+    <div class="panel-head"><h2>Fejezetek</h2><span class="small muted">${subs.length?`${doneN}/${subs.length} kész · tervezett ${ft(planned)} · kifizetve ${ft(spentAll)}`:'Bontsd fel a témakört kisebb részekre (pl. tervező, statika, geodézia).'}</span></div>
+    ${subs.map(s=>chapterRow(c,s)).join('')}
+    <button class="btn sm" data-act="add-sub" data-cat="${c.id}" style="margin-top:10px"><i data-lucide="plus"></i>Új fejezet</button>
+  </div>`;
+}
+function chapterRow(c,s){
+  const open=openChaps.has(s.id),sp=chPaid(c.id,s.id),pn=chPend(c.id,s.id),steps=s.steps||[],sd=steps.filter(x=>x.done).length;
+  const pct=s.planned?Math.min(100,sp/s.planned*100):0, over=s.planned&&sp>s.planned;
+  const ex=S.expenses.filter(e=>e.catId===c.id&&e.subId===s.id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  return `<div class="chap ${s.done?'done':''} ${open?'open':''}">
+    <button class="chap-h" data-chap="${s.id}">
+      ${s.done?'<span class="done-badge"><i data-lucide="check"></i></span>':`<span class="mini-ico" style="--c:${col(c)}"><i data-lucide="${s.icon||'tag'}"></i></span>`}
+      <span class="chap-n"><b>${esc(s.name)}</b>${s.optional?' <span class="chip">opcionális</span>':''}
+        <span class="small muted">${s.planned?`tervezett ${ft(s.planned)}`:'nincs tervezett összeg'}${sp?` · kifizetve ${ft(sp)}`:''}${pn?` · fizetendő ${ft(pn)}`:''}${steps.length?` · lépések ${sd}/${steps.length}`:''}${s.done&&s.doneDate?' · kész: '+fd(s.doneDate):''}</span>
+        ${s.planned?`<span class="bar" style="height:5px;margin-top:6px"><i style="width:${pct}%;background:${over?'var(--danger)':'var(--pine)'}"></i></span>`:''}</span>
+      <i data-lucide="${open?'chevron-up':'chevron-down'}"></i></button>
+    ${open?`<div class="chap-b">
+      ${s.note?`<div class="small" style="white-space:pre-wrap;margin-bottom:10px;color:var(--muted)">${esc(s.note)}</div>`:''}
+      ${steps.length||!s.done?`<div class="steps">${steps.map(x=>`<label class="step ${x.done?'ok':''}"><input type="checkbox" data-step="${c.id}|${s.id}|${x.id}" ${x.done?'checked':''} ${s.done?'disabled':''}><span>${esc(x.t)}</span>${s.done?'':`<button type="button" class="icon-btn" data-act="step-del" data-cat="${c.id}" data-sub="${s.id}" data-id="${x.id}" aria-label="Lépés törlése"><i data-lucide="x"></i></button>`}</label>`).join('')}
+        ${s.done?'':`<div class="step-add"><input class="inp" id="ns-${s.id}" placeholder="+ új lépés, Enter" data-newstep="${c.id}|${s.id}"><button class="btn sm" data-act="step-add" data-cat="${c.id}" data-sub="${s.id}">Hozzáad</button></div>`}</div>`:''}
+      <div class="small muted" style="margin:12px 0 4px"><b>Kifizetések</b></div>
+      ${ex.length?ex.map(expRowC).join(''):'<div class="small muted">Még nincs kifizetés ebben a fejezetben.</div>'}
+      <div class="chap-a">
+        ${s.done?`<button class="btn sm" data-act="chap-reopen" data-cat="${c.id}" data-id="${s.id}"><i data-lucide="pencil"></i>Újranyitás</button>`
+          :`<button class="btn sm" data-act="chap-pay" data-cat="${c.id}" data-id="${s.id}"><i data-lucide="plus"></i>Kifizetés rögzítése</button>
+            <button class="btn sm" data-act="edit-sub" data-cat="${c.id}" data-id="${s.id}"><i data-lucide="pencil"></i>Szerkesztés</button>
+            <button class="btn sm done-btn" data-act="chap-done" data-cat="${c.id}" data-id="${s.id}" style="margin-left:auto"><span class="done-badge sm"><i data-lucide="check"></i></span>Kész</button>`}
+      </div></div>`:''}
+  </div>`;
+}
+// fejezetekből számolt keret és készültség (amíg a kézi értéket nem írod felül)
+function syncChapters(c){const subs=c.subs||[];if(!subs.length)return;
+  const planned=subs.reduce((a,s)=>a+(s.planned||0),0);
+  if((!c.budget||c.budgetAuto)&&planned){c.budget=planned;c.budgetAuto=true}
+  const w=subs.map(s=>s.planned||0),tw=w.reduce((a,b)=>a+b,0);
+  c.progress=Math.round(tw?subs.reduce((a,s,i)=>a+(s.done?w[i]:0),0)/tw*100:subs.filter(s=>s.done).length/subs.length*100);}
 function renderSettle(){
   const all=S.expenses.filter(paid);
   const people=['Bence','Ancsi','Közös'];
@@ -1526,10 +1605,10 @@ function fmtLive(el){const pos=el.selectionStart??el.value.length;const before=e
   let n=0,i=0;while(i<out.length&&n<before){if(/\d/.test(out[i]))n++;i++}try{el.setSelectionRange(i,i)}catch(e){}}
 const isMoneyEl=t=>t.matches&&(t.matches('[inputmode="numeric"]')||(t.dataset.sale&&!/Pct$|investName|investDate/.test(t.dataset.sale)));
 function moneyInput(el){el.addEventListener('input',()=>fmtLive(el))}
-function expenseModal(e,preCat){
+function expenseModal(e,preCat,preSub){
   const ed=!!e; e=e||{amount:0,catId:preCat||(view.startsWith('cat:')?view.slice(4):''),paidBy:ME,desc:'',date:today(),status:'Fizetve',due:'',planned:0,note:''};
-  let sel=e.catId, who=e.paidBy, st=e.status||'Fizetve', sub=e.subId||(view.startsWith('cat:')&&subFilter[sel]&&subFilter[sel]!=='_none'?subFilter[sel]:'');
-  const subsHTML=()=>{const c=cat(sel);const l=(c&&c.subs)||[];return l.length?`<div style="margin:12px 0 6px" class="small muted"><b>Alcsoport</b></div><div class="subpick">${l.map(s=>`<button type="button" data-msub="${s.id}" class="${sub===s.id?'on':''}"><span class="pick-ico" style="--c:${col(c)};width:24px;height:24px;border-radius:7px"><i data-lucide="${s.icon}"></i></span>${esc(s.name)}</button>`).join('')}<button type="button" data-msub="" class="${sub?'':'on'}">Nincs</button></div>`:''};
+  let sel=e.catId, who=e.paidBy, st=e.status||'Fizetve', sub=e.subId||preSub||'';
+  const subsHTML=()=>{const c=cat(sel);const l=(c&&c.subs)||[];return l.length?`<div style="margin:12px 0 6px" class="small muted"><b>Fejezet</b></div><div class="subpick">${l.map(s=>`<button type="button" data-msub="${s.id}" class="${sub===s.id?'on':''}"><span class="pick-ico" style="--c:${col(c)};width:24px;height:24px;border-radius:7px"><i data-lucide="${s.icon}"></i></span>${esc(s.name)}</button>`).join('')}<button type="button" data-msub="" class="${sub?'':'on'}">Nincs</button></div>`:''};
   nextLock=ed?{get:()=>S.expenses.find(x=>x.id===e.id),reopen:()=>expenseModal(S.expenses.find(x=>x.id===e.id))}:null;
   modal(`<h3>${ed?'Kiadás szerkesztése':'Új kiadás'}</h3>
     <input class="inp amount-in" inputmode="numeric" id="m-amt" placeholder="0 Ft" value="${e.amount?nf.format(e.amount):''}" autofocus>
@@ -1552,6 +1631,7 @@ function expenseModal(e,preCat){
     const cs=cat(sel);if(sub&&!((cs&&cs.subs)||[]).some(x=>x.id===sub))sub='';
     const rec={amount:a,catId:sel,subId:sub,paidBy:who,status:st,desc:bd.querySelector('#m-desc').value.trim(),date:bd.querySelector('#m-date').value||today(),due:bd.querySelector('#m-due').value,planned:amt(bd.querySelector('#m-plan').value),note:bd.querySelector('#m-note').value.trim()};
     let tg;if(ed){tg=S.expenses.find(x=>x.id===e.id);Object.assign(tg,rec)}else{tg={id:uid(),created:Date.now(),by:ME,...rec};S.expenses.push(tg)}
+    if(tg.subId)openChaps.add(tg.subId);
     if(tg.status!=='Fizetendő')tg.locked=true; // ami ki van fizetve, az rögzített
     save();render();toast(ed?'Kiadás frissítve':st==='Fizetendő'?'Fizetendő tétel rögzítve':'Kiadás rögzítve');return tg},
   bd=>{moneyInput(bd.querySelector('#m-amt'));moneyInput(bd.querySelector('#m-plan'));
@@ -1562,20 +1642,27 @@ function expenseModal(e,preCat){
     bd.querySelector('[data-m="del"]')?.addEventListener('click',()=>confirmBox('Biztosan törlöd ezt a kiadást?',()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);save();render();toast('Kiadás törölve')}));
   });
 }
+function addStep(cid,sid){const inp=document.getElementById('ns-'+sid);const v=(inp&&inp.value||'').trim();if(!v){toast('Írd be a lépést');return}
+  const s=cat(cid).subs.find(x=>x.id===sid);s.steps=s.steps||[];s.steps.push({id:uid(),t:v,done:false});flushSave();render();setTimeout(()=>{const n=document.getElementById('ns-'+sid);if(n)n.focus()},30)}
 function subModal(cid,sid){
-  const c=cat(cid);c.subs=c.subs||[];const ed=!!sid,s=ed?c.subs.find(x=>x.id===sid):{name:'',icon:'tag'};let ic=s.icon;
+  const c=cat(cid);c.subs=c.subs||[];const ed=!!sid,s=ed?c.subs.find(x=>x.id===sid):{name:'',icon:'tag',planned:0,note:'',optional:false};let ic=s.icon||'tag';
   const n=ed?S.expenses.filter(e=>e.catId===cid&&e.subId===sid).length:0;
-  modal(`<h3>${ed?'Alcsoport szerkesztése':'Új alcsoport'} · ${esc(c.name)}</h3>
+  modal(`<h3>${ed?'Fejezet szerkesztése':'Új fejezet'} · ${esc(c.name)}</h3>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px"><div class="ico" id="s-prev" style="--c:${col(c)};width:48px;height:48px;border-radius:14px"><i data-lucide="${ic}"></i></div>
-      <input class="inp" id="s-name" value="${esc(s.name)}" placeholder="pl. Vételár, Adó, Mérések" autofocus style="flex:1"></div>
-    <div class="small muted" style="margin:0 0 6px"><b>Piktogram</b></div>
+      <input class="inp" id="s-name" value="${esc(s.name)}" placeholder="pl. Geodézia, Statika, Építészeti tervezés" autofocus style="flex:1"></div>
+    <div class="form-grid"><label class="f">Tervezett összeg (bruttó)<input class="inp" inputmode="numeric" id="s-pl" value="${s.planned?nf.format(s.planned):''}" placeholder="pl. 250 000"></label>
+      <label class="f" style="flex-direction:row;align-items:center;gap:8px;padding-top:22px"><input type="checkbox" id="s-opt" ${s.optional?'checked':''} style="width:18px;height:18px;accent-color:var(--pine)">Opcionális</label>
+      <label class="f full">Megjegyzés<textarea class="inp" id="s-note" placeholder="pl. ~összeg, alanyi adómentes, mit tartalmaz">${esc(s.note||'')}</textarea></label></div>
+    <div class="small muted" style="margin:14px 0 6px"><b>Piktogram</b></div>
     <div class="icon-grid" style="--c:${col(c)}">${ICON_SET.map(x=>`<button type="button" data-ic="${x}" class="${x===ic?'on':''}"><i data-lucide="${x}"></i></button>`).join('')}</div>
     <div class="modal-foot">${ed?'<button class="btn danger ghost" data-m="del" style="margin-right:auto">Törlés</button>':''}<button class="btn" data-m="cancel">Mégse</button><button class="btn primary" data-m="save">Mentés</button></div>`,
-  bd=>{const name=bd.querySelector('#s-name').value.trim();if(!name){toast('Adj nevet az alcsoportnak');return false}
-    const cc=cat(cid);cc.subs=cc.subs||[];if(ed)Object.assign(cc.subs.find(x=>x.id===sid),{name,icon:ic});else cc.subs.push({id:'s'+uid(),name,icon:ic});save();render();toast('Alcsoport mentve')},
-  bd=>{const prev=bd.querySelector('#s-prev');
+  bd=>{const name=bd.querySelector('#s-name').value.trim();if(!name){toast('Adj nevet a fejezetnek');return false}
+    const rec={name,icon:ic,planned:amt(bd.querySelector('#s-pl').value),optional:bd.querySelector('#s-opt').checked,note:bd.querySelector('#s-note').value.trim()};
+    const cc=cat(cid);cc.subs=cc.subs||[];let tg;if(ed){tg=cc.subs.find(x=>x.id===sid);Object.assign(tg,rec)}else{tg={id:'s'+uid(),steps:[],done:false,...rec};cc.subs.push(tg);openChaps.add(tg.id)}
+    syncChapters(cc);save();render();toast('Fejezet mentve')},
+  bd=>{const prev=bd.querySelector('#s-prev');moneyInput(bd.querySelector('#s-pl'));
     bd.querySelectorAll('[data-ic]').forEach(b=>b.onclick=()=>{ic=b.dataset.ic;bd.querySelectorAll('[data-ic]').forEach(x=>x.classList.toggle('on',x===b));prev.innerHTML=`<i data-lucide="${ic}"></i>`;icons()});
-    bd.querySelector('[data-m="del"]')?.addEventListener('click',()=>confirmBox(n?`Törlöd az alcsoportot? A ${n} tétele a témakörben marad, csak alcsoport nélkül.`:'Törlöd az alcsoportot?',()=>{const cc=cat(cid);cc.subs=cc.subs.filter(x=>x.id!==sid);S.expenses.forEach(e=>{if(e.catId===cid&&e.subId===sid)e.subId=''});subFilter[cid]='';save();render()}));
+    bd.querySelector('[data-m="del"]')?.addEventListener('click',()=>confirmBox(n?`Törlöd a fejezetet? A ${n} kifizetése a témakörben marad, csak fejezet nélkül.`:'Törlöd a fejezetet?',()=>{const cc=cat(cid);cc.subs=cc.subs.filter(x=>x.id!==sid);S.expenses.forEach(e=>{if(e.catId===cid&&e.subId===sid)e.subId=''});syncChapters(cc);save();render()}));
   });
 }
 function quoteModal(q,preCat,prePartner){
@@ -1819,6 +1906,11 @@ document.addEventListener('click',e=>{
     if(act==='nav-back')return navBack();
     if(act==='nav-fwd')return navFwd();
     if(act==='add-sub')return subModal(a.dataset.cat);
+    if(act==='chap-pay')return expenseModal(null,a.dataset.cat,a.dataset.id);
+    if(act==='chap-done'){const c=cat(a.dataset.cat),s=c.subs.find(x=>x.id===a.dataset.id);celebrate(a);s.done=true;s.doneDate=today();(s.steps||[]).forEach(x=>x.done=true);openChaps.delete(s.id);syncChapters(c);flushSave();render();toast('🎉 Kész: '+s.name);return}
+    if(act==='chap-reopen')return confirmBox('Újranyitod a fejezetet? Utána újra szerkeszthető.',()=>{const c=cat(a.dataset.cat),s=c.subs.find(x=>x.id===a.dataset.id);s.done=false;s.doneDate='';syncChapters(c);flushSave();render()},'Újranyitás');
+    if(act==='step-add'){addStep(a.dataset.cat,a.dataset.sub);return}
+    if(act==='step-del'){const c=cat(a.dataset.cat),s=c.subs.find(x=>x.id===a.dataset.sub);s.steps=s.steps.filter(x=>x.id!==a.dataset.id);flushSave();render();return}
     if(act==='edit-sub')return subModal(a.dataset.cat,a.dataset.id);
     if(act==='add-quote')return quoteModal(null,a.dataset.cat,a.dataset.partner);
     if(act==='edit-brief')return briefModal(cat(a.dataset.id));
@@ -1867,6 +1959,8 @@ document.addEventListener('click',e=>{
   if(td){return confirmBox('Biztosan törlöd ezt a teendőt?',()=>{S.tasks=S.tasks.filter(t=>t.id!==td.dataset.taskDel);save();render()})}
   const cpb=e.target.closest('[data-copy]');
   if(cpb){const v=cpb.dataset.copy;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>toast('Másolva: '+v)).catch(()=>toast('A másolás nem sikerült'));return}
+  const ch=e.target.closest('[data-chap]');
+  if(ch){const id=ch.dataset.chap;openChaps.has(id)?openChaps.delete(id):openChaps.add(id);render();return}
   const bk=e.target.closest('[data-brk]');
   if(bk){const id=bk.dataset.brk;openBreak.has(id)?openBreak.delete(id):openBreak.add(id);render();return}
   const sf=e.target.closest('[data-subf]');
@@ -1894,6 +1988,8 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{
   const t=e.target;
+  if(t.dataset.step){const [cid,sid,xid]=t.dataset.step.split('|');const s=cat(cid).subs.find(x=>x.id===sid),x=s.steps.find(y=>y.id===xid);x.done=t.checked;flushSave();
+    if(t.checked){celebrate(t);if(s.steps.every(y=>y.done))toast('Minden lépés kész – lezárhatod a fejezetet ✓')}render();return}
   if(t.dataset.taskToggle){const k=S.tasks.find(x=>x.id===t.dataset.taskToggle);setTStat(k,t.checked?'done':'todo');save();render();if(t.checked)toast('🎉 Kész: '+k.title);return}
   if(t.dataset.catRange){cat(t.dataset.catRange).progress=+t.value;flushSave();render();return}
   if(t.dataset.money){cat(t.dataset.money).budget=amt(t.value);flushSave();softRender();return}
@@ -1919,7 +2015,7 @@ document.addEventListener('input',e=>{
       if(t.dataset.ded==='amount')d.amount=amt(t.value);else d.name=t.value;saleLive(f);saveSoon()}return}
   if(t.id==='rec-q'){recQ=t.value;const l=document.getElementById('rec-list');if(l){l.innerHTML=recListHTML();icons()}return}
   if(t.dataset.catRange){document.getElementById('pv').textContent=t.value+'%';cat(t.dataset.catRange).progress=+t.value;saveSoon();return}
-  if(t.dataset.money){const c=cat(t.dataset.money);if(c){c.budget=amt(t.value);saveSoon()}return}
+  if(t.dataset.money){const c=cat(t.dataset.money);if(c){c.budget=amt(t.value);c.budgetAuto=false;saveSoon()}return}
   if(t.dataset.f&&view.startsWith('cat:')){const c=cat(view.slice(4));if(c){c[t.dataset.f]=t.value;saveSoon()}return}
   if(t.dataset.set){S.settings[t.dataset.set]=t.type==='number'?+t.value:t.value;saveSoon();return}
   if(t.dataset.setMoney){S.settings[t.dataset.setMoney]=amt(t.value);saveSoon();return}
@@ -1932,6 +2028,7 @@ document.addEventListener('focusout',e=>{
   if(t.dataset&&(t.dataset.money!==undefined||t.dataset.f||t.dataset.set||t.dataset.setMoney!==undefined||t.dataset.sale||t.dataset.ded||t.dataset.catRange)){flushSave();softRender()}
 });
 document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.newstep){e.preventDefault();const [cid,sid]=e.target.dataset.newstep.split('|');addStep(cid,sid);return}
   if((e.metaKey&&e.key==='[')||(e.altKey&&e.key==='ArrowLeft')){e.preventDefault();navBack();return}
   if((e.metaKey&&e.key===']')||(e.altKey&&e.key==='ArrowRight')){e.preventDefault();navFwd();return}
   if(e.key==='Escape'){const L=document.getElementById('layer');if(!L.querySelector('input,textarea,select'))L.innerHTML=''}if(e.key==='Enter'&&e.target.id==='nt-title')document.querySelector('[data-act="add-task"]').click()});
