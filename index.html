@@ -175,7 +175,7 @@ textarea.inp{resize:vertical;min-height:70px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-grid .full{grid-column:1/-1}
 .seg{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px}
-.seg button{flex:1;border:0;background:none;border-radius:8px;padding:8px;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--muted)}
+.seg button{white-space:nowrap;flex:1;border:0;background:none;border-radius:8px;padding:8px;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--muted)}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
 
 /* Category page */
@@ -201,7 +201,7 @@ input[type=range]{flex:1;min-width:200px;accent-color:var(--pine);height:28px}
 .util dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0 0;font-size:13px}
 .util dt{color:var(--muted)}
 .util dd{margin:0;font-weight:600;word-break:break-word}
-.sale-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px}
+.sale-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
 .wf{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px dashed var(--line);font-size:14px}
 .wf:first-child{border-top:0}
 .wf.neg span:last-child{color:var(--danger);font-weight:600}
@@ -274,6 +274,24 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
   .li{flex-wrap:wrap;row-gap:6px}.li>.grow{flex:1 1 55%;min-width:0}
   .kpis{grid-template-columns:1fr 1fr!important}
 }
+.done-badge{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--ok);color:#fff;flex:none;box-shadow:0 4px 12px color-mix(in srgb,var(--ok) 35%,transparent)}
+.done-badge svg.lucide{width:17px;height:17px;stroke-width:3}
+.done-badge.big{width:42px;height:42px}.done-badge.big svg.lucide{width:22px;height:22px}
+.done-badge.sm{width:22px;height:22px;box-shadow:none}.done-badge.sm svg.lucide{width:13px;height:13px}
+.done-btn{background:var(--pine-soft);border-color:transparent;color:var(--pine);font-weight:700;transition:transform .15s ease}
+.done-btn:hover{transform:scale(1.03);background:var(--pine-soft)}
+.ms-foot{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:18px;padding-top:14px}
+.ms-done{border-color:color-mix(in srgb,var(--ok) 40%,var(--line));background:linear-gradient(180deg,color-mix(in srgb,var(--ok) 7%,var(--surface)),var(--surface))}
+.lockbtn{position:relative}
+.lockbtn.on{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.lk-ok{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;border-radius:50%;background:var(--ok);color:#fff;font-size:9px;font-weight:900;display:grid;place-items:center;line-height:1;border:2px solid var(--surface)}
+.lockbtn.pop{animation:lkpop .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes lkpop{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+.lk-badge{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--ok);color:#fff;font-weight:900;font-size:12px;flex:none}
+.lockbar{background:color-mix(in srgb,var(--ok) 12%,var(--surface))!important;color:var(--ok)!important}
+.confetti{position:fixed;width:8px;height:12px;border-radius:2px;z-index:200;pointer-events:none;transform:translate(-50%,-50%);animation:conf .95s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes conf{0%{opacity:1;transform:translate(-50%,-50%) rotate(0)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy) + 60px)) rotate(var(--r))}}
+@media (prefers-reduced-motion:reduce){.confetti{display:none}.lockbtn.pop{animation:none}}
 .dedl{border:1px solid var(--line);border-radius:12px;padding:2px 10px}
 .drow{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border-bottom:0}
@@ -482,7 +500,7 @@ button.tag{cursor:pointer}
 <div id="print"></div>
 
 <script>
-const APP_VERSION='17 (okt. 20.)';
+const APP_VERSION='18 (okt. 29.)';
 const COLLS=['cats','expenses','quotes','tasks','funding','utilities','records'];
 const USERS={'pancelbence@gmail.com':'Bence','kretzannamaria@gmail.com':'Ancsi'};
 let ME='Bence', READY=false, pendingRender=false;
@@ -581,7 +599,7 @@ function saleCalc(s){
   let ann=null; if(s.invested&&s.investDate&&inv&&val){const yrs=(Date.now()-toD(s.investDate).getTime())/(365.25*864e5);if(yrs>0.08)ann=(Math.pow(val/inv,1/yrs)-1)*100}
   return {comm,ded,net,inv,val,gain,pct,ann,avail:net-inv+val};
 }
-const fAmt=f=>f.sale?saleCalc(f.sale).avail:(f.amount||0);
+const fAmt=f=>f.sale?saleCalc(f.sale).net:(f.amount||0); // a projekt az eladásból maradt összeggel számol; a befektetés Bence saját ügye
 function seedFunding(){return [
   {id:uid(),kind:'forras',type:'Ingatlaneladás',name:'Torda utca 15. eladása',amount:0,date:'',owner:'Bence',status:'Várható',note:'7627 Pécs, Torda utca 15.',sale:defaultSale()},
   {id:uid(),kind:'kolcson',type:'Családi kölcsön',name:'Ibolya néni',amount:2500000,date:'',owner:'Bence',status:'Megérkezett',repayDue:'2026-05-01',repaid:true,repaidDate:'2026-05-01',note:''},
@@ -620,6 +638,12 @@ function newCat(id,name,icon,color,scope,share){return {id,name,icon,color,scope
 const subOf=e=>{const c=cat(e.catId);return c&&e.subId?(c.subs||[]).find(s=>s.id===e.subId):null};
 const expIcon=e=>{const s=subOf(e);return s?s.icon:(cat(e.catId)||{icon:'receipt'}).icon};
 const expPlace=e=>{const c=cat(e.catId)||{name:''},s=subOf(e);return c.name+(s?' · '+s.name:'')};
+function migrate3(){
+  if(S.settings.mig3)return;
+  S.expenses.forEach(e=>{if(e.status!=='Fizetendő')e.locked=true});
+  (S.funding||[]).forEach(f=>{if(f.sale&&f.sale.invested&&!f.owner)f.owner='Bence'});
+  S.settings.mig3=true;save();
+}
 function migrate2(){
   if(S.settings.mig2||!S.cats.length)return;
   const telek=cat('telek');
@@ -662,7 +686,7 @@ const APP={
     if(pendSettings&&pendSettings!==rj){S.settings=JSON.parse(pendSettings);syncedSettings=pendSettings;return}
     pendSettings=null;S.settings=s||{};syncedSettings=rj;scheduleRender()},
   seedAll(){const d=seed();READY=true;Object.assign(S,d);save()},
-  ready(email){if(APP._ready)return;APP._ready=true;ME=USERS[(email||'').toLowerCase()]||'Bence';READY=true;migrate();migrate2();scheduleRender(true)},
+  ready(email){if(APP._ready)return;APP._ready=true;ME=USERS[(email||'').toLowerCase()]||'Bence';READY=true;migrate();migrate2();migrate3();scheduleRender(true)},
   setStatus(st){lastSt=st;const el=document.getElementById('sync-st');if(!el)return;
     const m={ok:['','Szinkronizálva'],pending:['off','Mentés folyamatban…'],offline:['off','Offline – net után szinkronizál'],error:['err','Hiba a szinkronban']}[st]||['','Szinkronizálva'];
     el.innerHTML=`<span class="sdot ${m[0]}"></span>${m[1]}`;
@@ -723,6 +747,11 @@ function plannedEnd(){
 }
 function statusOf(c){return c.progress>=100?['Kész','pine']:c.progress>0?['Folyamatban','oak']:['Nem kezdődött','']}
 function icons(){if(window.lucide)lucide.createIcons()}
+function celebrate(el){try{const r=el?el.getBoundingClientRect():{left:innerWidth/2,top:innerHeight/2,width:0,height:0};
+  const x=r.left+r.width/2,y=r.top+r.height/2,cols=['#4E9E57','#F2A100','#3B8FE0','#D9466F','#8B5CF6','#14A38B','#F2702E'];
+  for(let i=0;i<18;i++){const s=document.createElement('span');s.className='confetti';s.style.left=x+'px';s.style.top=y+'px';s.style.background=cols[i%cols.length];
+    const a=Math.random()*Math.PI*2,d=40+Math.random()*70;s.style.setProperty('--dx',Math.cos(a)*d+'px');s.style.setProperty('--dy',(Math.sin(a)*d-30)+'px');s.style.setProperty('--r',(Math.random()*540-270)+'deg');
+    document.body.appendChild(s);setTimeout(()=>s.remove(),1000)}}catch(e){}}
 function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),2200)}
 
 function backupHint(){
@@ -1271,13 +1300,13 @@ function fundCalc(){
   const F=(S.funding||[]).filter(f=>f.kind!=='kolcson'), t=totals();
   const got=F.filter(f=>f.status==='Megérkezett'), will=F.filter(f=>f.status!=='Megérkezett');
   const inc=got.reduce((a,f)=>a+fAmt(f),0), exp=will.reduce((a,f)=>a+fAmt(f),0);
-  const cash=inc-t.all;
   const houseLeft=Math.max(0,t.hb-t.hs);
   const otherPending=S.expenses.filter(e=>!paid(e)&&(cat(e.catId)||{}).scope!=='haz').reduce((a,e)=>a+e.amount,0);
-  const need=houseLeft+otherPending, have=cash+exp;
+  // A már kifizetett kiadások rendezve vannak – a fedezet csak a hátralévőt nézi.
+  const need=houseLeft+otherPending, have=inc+exp;
   const cb=got.reduce((a,f)=>a+fAmt(f)*shareB(f),0), ca=got.reduce((a,f)=>a+fAmt(f)*(1-shareB(f)),0);
   const eb=will.reduce((a,f)=>a+fAmt(f)*shareB(f),0), ea=will.reduce((a,f)=>a+fAmt(f)*(1-shareB(f)),0);
-  return {inc,exp,spent:t.all,cash,houseLeft,otherPending,need,have,balance:have-need,cb,ca,eb,ea};
+  return {inc,exp,spent:t.all,houseLeft,otherPending,need,have,balance:have-need,cb,ca,eb,ea};
 }
 const ownerTxt=f=>f.owner==='Közös'?`Közös ${Math.round(f.split??50)}/${100-Math.round(f.split??50)}`:f.owner;
 function fundRow(f){
@@ -1302,10 +1331,16 @@ function saleLive(f){const s=f.sale,c=saleCalc(s),g=x=>document.getElementById(x
   if(g('sc-'))g('sc-').innerHTML=saleCommHTML(s,c);if(g('sw-'))g('sw-').innerHTML=saleWfHTML(s,c);if(g('si-'))g('si-').innerHTML=saleInvHTML(s,c)}
 function salePanel(f){
   const s=f.sale, c=saleCalc(s);
-  const mi=(field,label,val,extra='')=>`<label class="f">${label}<input class="inp" inputmode="decimal" data-sale="${field}" data-fid="${f.id}" value="${val}" ${extra}></label>`;
+  if(s.done){const ded=(s.deductions||[]).filter(d=>!d.settled&&d.amount);
+    return `<div class="panel ms-done" style="margin-top:22px">
+      <div class="panel-head"><h2 style="display:flex;align-items:center;gap:12px"><span class="done-badge big"><i data-lucide="check"></i></span><span>${esc(f.name)}<span class="small muted" style="display:block;font-weight:500">Kész · ${s.doneDate?fd(s.doneDate):''}</span></span></h2>
+        <button class="btn sm" data-act="sale-reopen" data-fid="${f.id}"><i data-lucide="pencil"></i>Szerkesztés</button></div>
+      <div class="fin" style="grid-template-columns:repeat(3,1fr);margin-top:4px"><div><span class="kpi-lbl">Eladási ár</span><b>${ft(s.price)}</b></div><div><span class="kpi-lbl">Jutalék és levonások</span><b>−${ft(c.comm+c.ded)}</b></div><div><span class="kpi-lbl">Ami maradt</span><b style="color:var(--pine)">${ft(c.net)}</b></div></div>
+      ${ded.length?`<div class="small muted" style="margin-top:10px">Levonva: ${ded.map(d=>esc(d.name)+' '+ft(d.amount)).join(' · ')}</div>`:''}
+    </div>`}
+  const mi=(field,label,val,extra='')=>`<label class="f">${label}<input class="inp" inputmode="${/Pct$/.test(field)?'decimal':'numeric'}" data-sale="${field}" data-fid="${f.id}" value="${val}" ${extra}></label>`;
   return `<div class="panel ${f.locked?'locked-scope':''}" style="margin-top:22px">
-    <div class="panel-head"><h2 style="display:flex;align-items:center;gap:10px"><span class="mini-ico" style="--c:${FUND_COLORS['Ingatlaneladás']}"><i data-lucide="home"></i></span>${esc(f.name)}${lockBtn('fund',f.id,f.locked)}</h2>
-      <select class="inp" style="width:auto" data-sale-status="${f.id}">${['Várható','Megérkezett'].map(x=>`<option value="${x}" ${f.status===x?'selected':''}>${x==='Várható'?'Még nincs eladva':'Eladva, pénz megérkezett'}</option>`).join('')}</select></div>
+    <div class="panel-head"><h2 style="display:flex;align-items:center;gap:10px"><span class="mini-ico" style="--c:${FUND_COLORS['Ingatlaneladás']}"><i data-lucide="home"></i></span>${esc(f.name)}<span class="chip oak">Folyamatban</span></h2>${lockBtn('fund',f.id,f.locked)}</div>
     <div class="sale-grid">
       <div>
         <div class="form-grid">
@@ -1322,24 +1357,25 @@ function salePanel(f){
         </div>
         <p class="small muted" style="margin:10px 0 0" id="sc-${f.id}">${saleCommHTML(s,c)}</p>
       </div>
-      <div>
+      <div id="sw-${f.id}">${saleWfHTML(s,c)}</div>
+      <div style="grid-column:1/-1">
         <div class="small muted" style="margin-bottom:6px"><b>Levonások</b> – ami az eladásból még kifizetendő</div>
         <div class="dedl">${(s.deductions||[]).map(d=>`<div class="drow ${d.settled?'settled':''}"><span class="dn">${esc(d.name)}</span><span class="dv">${d.amount?'−'+ft(d.amount):'<span class="muted">nincs összeg</span>'}</span>
           <button class="chip ${d.settled?'pine':'oak'} dtog" data-act="ded-toggle" data-fid="${f.id}" data-id="${d.id}" title="Kattintásra vált">${d.settled?'Rendezve':'Levonandó'}</button>
           <button class="icon-btn" data-act="ded-edit" data-fid="${f.id}" data-id="${d.id}" aria-label="Szerkesztés"><i data-lucide="pencil"></i></button></div>`).join('')||'<div class="small muted" style="padding:8px 0">Nincs levonás.</div>'}</div>
         <button class="btn sm" style="margin-top:10px" data-act="ded-edit" data-fid="${f.id}"><i data-lucide="plus"></i>Levonás hozzáadása</button>
       </div>
-      <div id="sw-${f.id}">${saleWfHTML(s,c)}</div>
     </div>
-    <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
-      ${s.invested?`<div class="panel-head" style="margin-bottom:10px"><h2 style="display:flex;align-items:center;gap:8px"><i data-lucide="trending-up"></i>Befektetés${s.investName?': '+esc(s.investName):''}</h2>
-          <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm primary" data-act="inv-value" data-fid="${f.id}"><i data-lucide="refresh-cw"></i>Érték frissítése</button><button class="btn sm" data-act="inv-setup" data-fid="${f.id}"><i data-lucide="pencil"></i>Beállítás</button></div></div>
-        <div class="fin" style="grid-template-columns:repeat(3,1fr);margin-top:0"><div><span class="kpi-lbl">Befektetve${s.investDate?' · '+fd(s.investDate):''}</span><b>${ft(c.inv)}</b></div><div><span class="kpi-lbl">Jelenlegi érték</span><b>${ft(c.val)}</b></div><div><span class="kpi-lbl">Elérhető ebből a forrásból</span><b>${ft(c.avail)}</b></div></div>
-        <div id="si-${f.id}">${saleInvHTML(s,c)}</div>`
-      :`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="muted small" style="flex:1">Ha az eladásból származó összeget befektetitek, itt követheted az értékét és a hozamát.</span><button class="btn sm" data-act="inv-setup" data-fid="${f.id}"><i data-lucide="trending-up"></i>Befektetés rögzítése</button></div>`}
-    </div>
+    <div class="ms-foot"><span class="muted small">Ha megtörtént az eladás és a levonások rendeződtek, pipáld ki. Utána a számok rögzülnek.</span>
+      <button class="btn done-btn" data-act="sale-done" data-fid="${f.id}"><span class="done-badge sm"><i data-lucide="check"></i></span>Kész, lezárom</button></div>
   </div>`;
 }
+function invPanel(f){const s=f.sale,c=saleCalc(s);
+  return `<div class="panel" style="margin-top:22px"><div class="panel-head"><h2 style="display:flex;align-items:center;gap:8px"><i data-lucide="trending-up"></i>Befektetés${s.investName?': '+esc(s.investName):''}</h2>
+    ${s.invested?`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm primary" data-act="inv-value" data-fid="${f.id}"><i data-lucide="refresh-cw"></i>Érték frissítése</button><button class="btn sm" data-act="inv-setup" data-fid="${f.id}"><i data-lucide="pencil"></i>Beállítás</button></div>`:''}</div>
+    ${s.invested?`<div class="fin" style="grid-template-columns:repeat(2,1fr);margin-top:0"><div><span class="kpi-lbl">Befektetve${s.investDate?' · '+fd(s.investDate):''}</span><b>${ft(c.inv)}</b></div><div><span class="kpi-lbl">Jelenlegi érték</span><b>${ft(c.val)}</b></div></div><div id="si-${f.id}">${saleInvHTML(s,c)}</div>`
+    :`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="muted small" style="flex:1">Ha az eladásból kapott pénzt befekteted, itt követheted az értékét és a hozamát. Ez a te saját ügyed, a projekt számait nem befolyásolja.</span><button class="btn sm" data-act="inv-setup" data-fid="${f.id}"><i data-lucide="trending-up"></i>Befektetés rögzítése</button></div>`}</div>`}
+
 let finTab='projekt';
 function renderFunding(){
   const F=S.funding||[];
@@ -1351,6 +1387,7 @@ function renderFunding(){
     return `<div class="page-head"><div><h1>Finanszírozás</h1><p class="sub">${p} saját ügyei. Ez nem része a projekt költségvetésének, csak hogy szem előtt legyen.</p></div><button class="btn primary" data-act="add-fund" data-kind="kolcson" data-owner="${p}"><i data-lucide="plus"></i>Új kötelezettség</button></div>${tabs}
     <div class="panel"><div class="panel-head"><h2>Visszafizetendő</h2><span class="small muted">Még fizetendő: <b style="color:var(--ink)">${ft(open)}</b>${done?` · visszafizetve: ${ft(done)}`:''}</span></div>
       ${loans.length?loans.map(fundRow).join(''):'<div class="empty">Nincs ilyen tétel.</div>'}</div>
+    ${F.filter(f=>f.sale&&(f.owner||'Bence')===p).map(invPanel).join('')}
     <div class="panel" style="margin-top:22px"><div class="panel-head"><h2>Amit ${p} a projektbe tett</h2></div>
       ${mine.length?mine.map(fundRow).join(''):'<div class="empty">Még nincs ilyen forrás.</div>'}</div>`;
   }
@@ -1358,13 +1395,14 @@ function renderFunding(){
   const max=Math.max(c.have,c.need,1), ok=c.balance>=0, ct=c.cb+c.ca||1, et=c.eb+c.ea;
   return `<div class="page-head"><div><h1>Finanszírozás</h1><p class="sub">Miből épül a ház, és mire elég</p></div><button class="btn primary" data-act="add-fund" data-kind="forras"><i data-lucide="plus"></i>Új forrás</button></div>${tabs}
   <div class="panel">
-    <div class="kpi-lbl">Szabad pénz most</div>
-    <div class="kpi-big" style="color:${c.cash<0?'var(--danger)':'inherit'}">${ft(c.cash)}</div>
-    <div class="kpi-of">beérkezett források mínusz az eddigi kiadások</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <span class="done-badge"><i data-lucide="check"></i></span>
+      <div style="flex:1;min-width:200px"><div class="kpi-lbl">Eddig kifizetve – rendezve</div><div class="kpi-big" style="font-size:36px">${ft(c.spent)}</div></div>
+    </div>
     <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
-      <div><span class="kpi-lbl">Beérkezett források</span><b>${ft(c.inc)}</b></div>
+      <div><span class="kpi-lbl">Rendelkezésre álló források</span><b>${ft(c.inc)}</b></div>
       <div><span class="kpi-lbl">Várható források</span><b>${ft(c.exp)}</b></div>
-      <div><span class="kpi-lbl">Elköltve eddig</span><b>${ft(c.spent)}</b></div>
+      <div><span class="kpi-lbl">Még szükséges a beköltözésig</span><b>${ft(c.need)}</b></div>
     </div>
   </div>
   <div class="panel" style="margin-top:22px">
@@ -1377,7 +1415,7 @@ function renderFunding(){
   </div>
   <div class="panel" style="margin-top:22px">
     <div class="panel-head"><h2>Fedezet a beköltözésig</h2><span class="chip ${ok?'pine':'red'}">${ok?'Többlet: '+ft(c.balance):'Hiány: '+ft(-c.balance)}</span></div>
-    <div class="small muted">Rendelkezésre áll (szabad pénz és várható források)</div>
+    <div class="small muted">Rendelkezésre álló és várható források</div>
     <div class="bar" style="height:12px;margin:6px 0 4px"><i style="width:${Math.max(0,c.have)/max*100}%;background:var(--pine)"></i></div>
     <div class="amt" style="margin-bottom:14px">${ft(c.have)}</div>
     <div class="small muted">Még szükséges</div>
@@ -1447,10 +1485,11 @@ function closeMenu(){document.getElementById('side').classList.remove('open');do
 
 /* ---------- modals ---------- */
 const LOCK_SRC={rec:()=>S.records,exp:()=>S.expenses,quote:()=>S.quotes,fund:()=>S.funding,cat:()=>S.cats};
-const lockBtn=(kind,id,on)=>`<button class="icon-btn lockbtn ${on?'on':''}" data-lock="${kind}" data-id="${id}" title="${on?'Lezárva – kattints a feloldáshoz':'Lezárás, hogy véletlenül se lehessen átírni'}" aria-label="${on?'Feloldás':'Lezárás'}"><i data-lucide="${on?'lock':'lock-open'}"></i></button>`;
+const lockBtn=(kind,id,on)=>`<button class="icon-btn lockbtn ${on?'on':''}" data-lock="${kind}" data-id="${id}" title="${on?'Lezárva és rögzítve – kattints, ha szerkesztenéd':'Lezárás, hogy véletlenül se lehessen átírni'}" aria-label="${on?'Feloldás':'Lezárás'}"><i data-lucide="${on?'lock':'lock-open'}"></i>${on?'<span class="lk-ok">✓</span>':''}</button>`;
 function toggleLock(kind,id){const it=(LOCK_SRC[kind]()||[]).find(x=>x.id===id);if(!it)return;
   if(it.locked)confirmBox('Feloldod a zárolást? Utána szerkeszthető és törölhető lesz.',()=>{it.locked=false;flushSave();render();toast('Feloldva')},'Feloldás');
-  else{it.locked=true;flushSave();render();toast('🔒 Lezárva – csak olvasható')}}
+  else{const btn=document.querySelector(`[data-lock="${kind}"][data-id="${id}"]`);celebrate(btn);it.locked=true;flushSave();render();toast('✓ Lezárva – csak olvasható');
+    const nb=document.querySelector(`[data-lock="${kind}"][data-id="${id}"]`);if(nb){nb.classList.add('pop');setTimeout(()=>nb.classList.remove('pop'),700)}}}
 // Lezárt területek (pl. témakör keret, Torda kalkulátor): csak olvasható mezők
 function applyScopeLocks(root){root.querySelectorAll('.locked-scope').forEach(sc=>{
   sc.querySelectorAll('input,textarea').forEach(x=>{if(['checkbox','date','range'].includes(x.type))x.disabled=true;else x.readOnly=true});
@@ -1462,7 +1501,7 @@ function lockModal(bd,info){const m=bd.querySelector('.modal');
   m.querySelectorAll('button').forEach(b=>{if(!b.matches('[data-m="cancel"]'))b.disabled=true});
   m.querySelectorAll('[data-m="save"],[data-m="savelock"],[data-m="del"]').forEach(b=>b.hidden=true);
   const bar=document.createElement('div');bar.className='lockbar';
-  bar.innerHTML='<i data-lucide="lock"></i><span>Lezárva – csak olvasható. A szöveg kijelölhető és másolható.</span><button class="btn sm" type="button" id="m-unlock">Feloldás</button>';
+  bar.innerHTML='<span class="lk-badge">✓</span><span>Rögzítve és lezárva. A szöveg kijelölhető és másolható.</span><button class="btn sm" type="button" id="m-unlock"><i data-lucide="pencil"></i>Szerkesztés</button>';
   m.insertBefore(bar,m.children[1]||null);icons();
   bar.querySelector('#m-unlock').onclick=()=>confirmBox('Feloldod a zárolást? Utána szerkeszthető és törölhető lesz.',()=>{const it=info.get();if(it){it.locked=false;flushSave();render();setTimeout(()=>info.reopen(),0)}},'Feloldás');}
 let nextLock=null;
@@ -1472,7 +1511,7 @@ function modal(html,onSave,mount){
   const bd=L.firstElementChild;icons();
   bd.addEventListener('click',e=>{if(e.target.closest('[data-m="cancel"]')||(e.target===bd&&!bd.querySelector('input,textarea,select')))L.innerHTML=''});
   const li=nextLock;nextLock=null;
-  const doSave=lockAfter=>{const r=onSave(bd);if(r===false)return;L.innerHTML='';if(lockAfter&&r&&typeof r==='object'){r.locked=true;flushSave();render();toast('🔒 Mentve és lezárva')}};
+  const doSave=lockAfter=>{const sb=bd.querySelector('[data-m="savelock"]');const r=onSave(bd);if(r===false)return;L.innerHTML='';if(lockAfter&&r&&typeof r==='object'){r.locked=true;flushSave();render();celebrate(sb);toast('✓ Mentve és lezárva')}};
   bd.querySelector('[data-m="save"]')?.addEventListener('click',()=>doSave(false));
   bd.querySelector('[data-m="savelock"]')?.addEventListener('click',()=>doSave(true));
   mount&&mount(bd);
@@ -1482,7 +1521,11 @@ function modal(html,onSave,mount){
 function confirmBox(text,ok,label='Törlés'){
   modal(`<h3>${text}</h3><div class="modal-foot"><button class="btn" data-m="cancel">Mégse</button><button class="btn primary" data-m="save" style="background:var(--danger);border-color:var(--danger)">${label}</button></div>`,()=>{ok();});
 }
-function moneyInput(el){el.addEventListener('input',()=>{const v=amt(el.value);el.value=v?nf.format(v):''})}
+function fmtLive(el){const pos=el.selectionStart??el.value.length;const before=el.value.slice(0,pos).replace(/\D/g,'').length;
+  const v=amt(el.value);const out=v?nf.format(v):'';if(out===el.value)return;el.value=out;
+  let n=0,i=0;while(i<out.length&&n<before){if(/\d/.test(out[i]))n++;i++}try{el.setSelectionRange(i,i)}catch(e){}}
+const isMoneyEl=t=>t.matches&&(t.matches('[inputmode="numeric"]')||(t.dataset.sale&&!/Pct$|investName|investDate/.test(t.dataset.sale)));
+function moneyInput(el){el.addEventListener('input',()=>fmtLive(el))}
 function expenseModal(e,preCat){
   const ed=!!e; e=e||{amount:0,catId:preCat||(view.startsWith('cat:')?view.slice(4):''),paidBy:ME,desc:'',date:today(),status:'Fizetve',due:'',planned:0,note:''};
   let sel=e.catId, who=e.paidBy, st=e.status||'Fizetve', sub=e.subId||(view.startsWith('cat:')&&subFilter[sel]&&subFilter[sel]!=='_none'?subFilter[sel]:'');
@@ -1509,6 +1552,7 @@ function expenseModal(e,preCat){
     const cs=cat(sel);if(sub&&!((cs&&cs.subs)||[]).some(x=>x.id===sub))sub='';
     const rec={amount:a,catId:sel,subId:sub,paidBy:who,status:st,desc:bd.querySelector('#m-desc').value.trim(),date:bd.querySelector('#m-date').value||today(),due:bd.querySelector('#m-due').value,planned:amt(bd.querySelector('#m-plan').value),note:bd.querySelector('#m-note').value.trim()};
     let tg;if(ed){tg=S.expenses.find(x=>x.id===e.id);Object.assign(tg,rec)}else{tg={id:uid(),created:Date.now(),by:ME,...rec};S.expenses.push(tg)}
+    if(tg.status!=='Fizetendő')tg.locked=true; // ami ki van fizetve, az rögzített
     save();render();toast(ed?'Kiadás frissítve':st==='Fizetendő'?'Fizetendő tétel rögzítve':'Kiadás rögzítve');return tg},
   bd=>{moneyInput(bd.querySelector('#m-amt'));moneyInput(bd.querySelector('#m-plan'));
     bd.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{st=b.dataset.st;bd.querySelector('#m-date-l').hidden=st==='Fizetendő';bd.querySelectorAll('[data-st]').forEach(x=>x.classList.toggle('on',x===b))});
@@ -1724,6 +1768,16 @@ function dedModal(fid,did){
     if(ed)Object.assign(ff.sale.deductions.find(x=>x.id===did),rec);else ff.sale.deductions.push({id:uid(),...rec});save();render();toast('Levonás mentve')},
   bd=>{moneyInput(bd.querySelector('#d-a'));bd.querySelector('[data-m="del"]')?.addEventListener('click',()=>confirmBox('Törlöd ezt a levonást?',()=>{const ff=S.funding.find(x=>x.id===fid);ff.sale.deductions=ff.sale.deductions.filter(x=>x.id!==did);save();render()}))});
 }
+function saleDoneModal(fid,btn){
+  const f=S.funding.find(x=>x.id===fid),c=saleCalc(f.sale);
+  if(!f.sale.price){toast('Előbb írd be az eladási árat');return}
+  modal(`<h3>Kész az eladás? 🎉</h3><p class="muted" style="margin-top:-6px">A számok rögzülnek: eladási ár ${ft(f.sale.price)}, ami maradt <b style="color:var(--ink)">${ft(c.net)}</b>. Ez az összeg forrásként a projektbe kerül.</p>
+    <div class="form-grid"><label class="f">Az eladás dátuma<input class="inp" type="date" id="sd-d" value="${f.sale.doneDate||today()}"></label></div>
+    <div class="modal-foot"><button class="btn" data-m="cancel">Mégse</button><button class="btn primary done-btn" data-m="save"><span class="done-badge sm"><i data-lucide="check"></i></span>Igen, kész</button></div>`,
+  bd=>{const ff=S.funding.find(x=>x.id===fid),d=bd.querySelector('#sd-d').value||today();
+    Object.assign(ff.sale,{done:true,doneDate:d});ff.status='Megérkezett';ff.date=d;ff.locked=true;flushSave();render();
+    setTimeout(()=>celebrate(document.querySelector('.ms-done .done-badge')),50);toast('🎉 Torda eladás kész!')});
+}
 function invSetupModal(fid){
   const f=S.funding.find(x=>x.id===fid),s=f.sale,c=saleCalc(s);
   modal(`<h3>Befektetés</h3><div class="form-grid">
@@ -1782,6 +1836,8 @@ document.addEventListener('click',e=>{
     if(act==='ded-edit')return dedModal(a.dataset.fid,a.dataset.id);
     if(act==='ded-toggle'){const d=S.funding.find(x=>x.id===a.dataset.fid).sale.deductions.find(x=>x.id===a.dataset.id);d.settled=!d.settled;flushSave();render();return}
     if(act==='inv-setup')return invSetupModal(a.dataset.fid);
+    if(act==='sale-done')return saleDoneModal(a.dataset.fid,a);
+    if(act==='sale-reopen')return confirmBox('Újranyitod a Torda eladás számítását? Utána a számok újra szerkeszthetők.',()=>{const f=S.funding.find(x=>x.id===a.dataset.fid);f.sale.done=false;f.locked=false;flushSave();render();toast('Újranyitva – szerkeszthető')},'Szerkesztés');
     if(act==='inv-value')return invValueModal(a.dataset.fid);
     if(act==='edit-fund')return fundModal(S.funding.find(x=>x.id===a.dataset.id));
     if(act==='edit-util')return utilModal(S.utilities.find(x=>x.id===a.dataset.id));
@@ -1834,7 +1890,7 @@ document.addEventListener('click',e=>{
   const rp=e.target.closest('[data-repay]');
   if(rp){const x=S.funding.find(v=>v.id===rp.dataset.repay);x.repaid=true;x.repaidDate=today();save();render();toast('Kölcsön visszafizetettnek jelölve');return}
   const py=e.target.closest('[data-pay]');
-  if(py){const x=S.expenses.find(v=>v.id===py.dataset.pay);x.status='Fizetve';x.date=today();save();render();toast('Kifizetettnek jelölve');return}
+  if(py){const x=S.expenses.find(v=>v.id===py.dataset.pay);celebrate(py);x.status='Fizetve';x.date=today();x.locked=true;save();render();toast('✓ Kifizetve és rögzítve');return}
 });
 document.addEventListener('change',e=>{
   const t=e.target;
@@ -1857,6 +1913,7 @@ document.addEventListener('input',e=>{
   const t=e.target;
   if(t.closest('#layer'))return; // ablakok a saját Mentés gombjukkal mentenek
   if(t.readOnly||t.disabled)return; // lezárt mező
+  if(isMoneyEl(t))fmtLive(t);
   if(t.dataset.sale&&t.dataset.fid){const f=S.funding.find(x=>x.id===t.dataset.fid);if(f){saleSet(f,t.dataset.sale,t.value);saleLive(f);saveSoon()}return}
   if(t.dataset.ded&&t.dataset.fid&&t.dataset.ded!=='settled'){const f=S.funding.find(x=>x.id===t.dataset.fid),d=f&&f.sale.deductions.find(x=>x.id===t.dataset.did);if(d){
       if(t.dataset.ded==='amount')d.amount=amt(t.value);else d.name=t.value;saleLive(f);saveSoon()}return}
